@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RuBin — Визуальное вдохновение и идеи</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">
+      <span class="logo-gem">◆</span>
+      <span class="logo-text">RuBin</span>
+    </div>
+
+    <input
+      type="search"
+      id="searchInput"
+      class="search-input"
+      placeholder="Поиск вдохновения: рецепты, Байкал, семейный уют..."
+    />
+
+    <button id="toggleCheckerBtn" class="btn-ruby">
+      🛡 Проверить фильтр РФ
+    </button>
+  </header>
+
+  <!-- Панель живой демонстрации модерации -->
+  <section id="checkerPanel" class="checker-panel hidden">
+    <h3>🛡 Живая проверка модерации RuBin (Этап 1)</h3>
+    <p class="checker-hint">
+      Проверьте, как фильтр реагирует на обычный семейный контент, спорные слова («политика») или запрещённые уловки («к.а.з.и.н.о»).
+    </p>
+    <div class="checker-form">
+      <input type="text" id="checkTitle" placeholder="Заголовок пина..." />
+      <input type="text" id="checkDesc" placeholder="Описание и #теги..." />
+      <input type="text" id="checkFile" placeholder="Имя файла (например: photo.jpg)" />
+      <button id="runCheckBtn" class="btn-ruby">Проверить текст</button>
+    </div>
+    <div id="checkResult" class="check-result hidden"></div>
+  </section>
+
+  <!-- Фильтр по темам -->
+  <nav id="topicsBar" class="topics-bar"></nav>
+
+  <!-- Сетка пинов как в Pinterest -->
+  <main id="pinsGrid" class="masonry-grid"></main>
+
+  <script src="app.js"></script>
+</body>
+</html>
