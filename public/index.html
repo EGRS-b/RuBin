@@ -20,14 +20,19 @@
       placeholder="Поиск вдохновения: рецепты, Байкал, семейный уют..."
     />
 
-    <button id="toggleCheckerBtn" class="btn-ruby">
-      🛡 Проверить фильтр РФ
-    </button>
+    <div class="topbar-actions">
+      <button id="openCreateModalBtn" class="btn-ruby">
+        ➕ Создать пин
+      </button>
+      <button id="toggleCheckerBtn" class="btn-outline">
+        🛡 Проверить фильтр РФ
+      </button>
+    </div>
   </header>
 
   <!-- Панель живой демонстрации модерации -->
   <section id="checkerPanel" class="checker-panel hidden">
-    <h3>🛡 Живая проверка модерации RuBin (Этап 1)</h3>
+    <h3>🛡 Живая проверка модерации RuBin</h3>
     <p class="checker-hint">
       Проверьте, как фильтр реагирует на обычный семейный контент, спорные слова («политика») или запрещённые уловки («к.а.з.и.н.о»).
     </p>
@@ -45,6 +50,61 @@
 
   <!-- Сетка пинов как в Pinterest -->
   <main id="pinsGrid" class="masonry-grid"></main>
+
+  <!-- Модальное окно создания нового пина -->
+  <div id="createModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📌 Опубликовать новый пин</h2>
+        <button id="closeCreateModalBtn" class="modal-close" aria-label="Закрыть">✕</button>
+      </div>
+
+      <form id="createPinForm" class="create-form">
+        <label>
+          Название пина *
+          <input type="text" id="pinTitle" required placeholder="Например: Утренний туман на Кавказе" />
+        </label>
+
+        <label>
+          Описание
+          <textarea id="pinDesc" rows="3" placeholder="Расскажите идею, рецепт или историю кадра..."></textarea>
+        </label>
+
+        <div class="form-row">
+          <label>
+            Категория
+            <select id="pinTopic"></select>
+          </label>
+          <label>
+            Ваше имя
+            <input type="text" id="pinAuthor" placeholder="Например: Егор" />
+          </label>
+        </div>
+
+        <label>
+          Хештеги
+          <input type="text" id="pinTags" placeholder="#природа #уют #вдохновение" />
+        </label>
+
+        <label>
+          Загрузить фото с компьютера
+          <input type="file" id="pinFile" accept="image/*" />
+        </label>
+
+        <label>
+          Или вставить прямую ссылку на картинку (URL)
+          <input type="url" id="pinImageUrl" placeholder="https://example.com/photo.jpg" />
+        </label>
+
+        <div id="createPinStatus" class="check-result hidden"></div>
+
+        <div class="modal-footer">
+          <button type="button" id="cancelCreateBtn" class="btn-outline">Отмена</button>
+          <button type="submit" class="btn-ruby">Опубликовать пин</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>
