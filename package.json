@@ -1,0 +1,14 @@
+{
+  "name": "rubin",
+  "version": "1.0.0",
+  "description": "RuBin — российская платформа визуального вдохновения с модерацией контента",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test tests"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}
