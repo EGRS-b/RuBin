@@ -23,6 +23,9 @@ const INITIAL_PINS = [
     author: 'Алексей Морозов',
     imageUrl: 'https://images.unsplash.com/photo-1548705085-101177834f47?auto=format&fit=crop&w=600&h=800&q=80',
     status: 'approved',
+    likes: 28,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-20T10:00:00.000Z'
   },
   {
@@ -34,6 +37,9 @@ const INITIAL_PINS = [
     author: 'Мария Соколова',
     imageUrl: 'https://images.unsplash.com/photo-1528207776546-365bb710ee93?auto=format&fit=crop&w=600&h=520&q=80',
     status: 'approved',
+    likes: 19,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-21T12:30:00.000Z'
   },
   {
@@ -45,6 +51,9 @@ const INITIAL_PINS = [
     author: 'Екатерина Волкова',
     imageUrl: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=600&h=760&q=80',
     status: 'approved',
+    likes: 34,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-22T15:10:00.000Z'
   },
   {
@@ -56,6 +65,9 @@ const INITIAL_PINS = [
     author: 'Илья Демидов',
     imageUrl: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=600&h=480&q=80',
     status: 'approved',
+    likes: 15,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-23T09:40:00.000Z'
   },
   {
@@ -67,6 +79,9 @@ const INITIAL_PINS = [
     author: 'Дмитрий Орлов',
     imageUrl: 'https://images.unsplash.com/photo-1596484552834-6a58f850e0a1?auto=format&fit=crop&w=600&h=780&q=80',
     status: 'approved',
+    likes: 22,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-24T14:20:00.000Z'
   },
   {
@@ -78,6 +93,9 @@ const INITIAL_PINS = [
     author: 'Анна Лебедева',
     imageUrl: 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=600&h=640&q=80',
     status: 'approved',
+    likes: 17,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-25T17:00:00.000Z'
   },
   {
@@ -89,6 +107,9 @@ const INITIAL_PINS = [
     author: 'Сергей Климов',
     imageUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=600&h=500&q=80',
     status: 'approved',
+    likes: 31,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-26T08:15:00.000Z'
   },
   {
@@ -100,12 +121,39 @@ const INITIAL_PINS = [
     author: 'Ольга Белова',
     imageUrl: 'https://images.unsplash.com/photo-1544787219-7f47ccb76574?auto=format&fit=crop&w=600&h=720&q=80',
     status: 'approved',
+    likes: 25,
+    reports: 0,
+    moderationNote: '',
     createdAt: '2026-10-27T18:45:00.000Z'
+  },
+  {
+    id: 9,
+    title: 'Городской форум: молодёжная политика и волонтёрство',
+    description: 'Фоторепортаж со студенческой встречи о городских инициативах.',
+    topic: 'Семья и традиции',
+    tags: '#форум #молодежь #волонтеры',
+    author: 'Павел Громов',
+    imageUrl: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=600&h=460&q=80',
+    status: 'pending',
+    likes: 0,
+    reports: 0,
+    moderationNote: 'Автофильтр (серый список): Общественно-политическая тематика',
+    createdAt: '2026-10-28T11:00:00.000Z'
   }
 ];
 
+function normalizePin(pin) {
+  return {
+    ...pin,
+    likes: typeof pin.likes === 'number' ? pin.likes : (pin.id * 3 + 7),
+    reports: typeof pin.reports === 'number' ? pin.reports : 0,
+    moderationNote: pin.moderationNote || ''
+  };
+}
+
 function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (!fs.existsSync(DATA_DIR)) {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
   }
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_PINS, null, 2), 'utf8');
@@ -114,7 +162,7 @@ function ensureDataFile() {
 
 function readPins() {
   ensureDataFile();
-  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')).map(normalizePin);
 }
 
 function writePins(pins) {
@@ -139,7 +187,7 @@ function getApprovedPins({ topic, q } = {}) {
   return pins.sort((a, b) => b.id - a.id);
 }
 
-function addPin({ title, description, topic, tags, author, imageUrl, status }) {
+function addPin({ title, description, topic, tags, author, imageUrl, status, moderationNote = '' }) {
   const pins = readPins();
   const nextId = pins.length ? Math.max(...pins.map((p) => p.id)) + 1 : 1;
   const newPin = {
@@ -151,6 +199,9 @@ function addPin({ title, description, topic, tags, author, imageUrl, status }) {
     author: (author || 'Гость RuBin').trim(),
     imageUrl,
     status,
+    likes: 0,
+    reports: 0,
+    moderationNote,
     createdAt: new Date().toISOString()
   };
   pins.push(newPin);
@@ -158,10 +209,32 @@ function addPin({ title, description, topic, tags, author, imageUrl, status }) {
   return newPin;
 }
 
+function likePin(id) {
+  const pins = readPins();
+  const target = pins.find((p) => p.id === Number(id));
+  if (!target) return null;
+  target.likes += 1;
+  writePins(pins);
+  return target;
+}
+
+function reportPin(id, reason = 'Жалоба пользователя на контент') {
+  const pins = readPins();
+  const target = pins.find((p) => p.id === Number(id));
+  if (!target) return null;
+  target.reports += 1;
+  target.status = 'pending';
+  target.moderationNote = `Жалоба пользователя (${target.reports}): ${reason}`;
+  writePins(pins);
+  return target;
+}
+
 module.exports = {
   TOPICS,
   getApprovedPins,
   addPin,
+  likePin,
+  reportPin,
   readPins,
   writePins
 };
