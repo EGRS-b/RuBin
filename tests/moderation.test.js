@@ -12,6 +12,26 @@ test('Пропускает доброжелательный семейный и 
   assert.equal(res.status, 'approved');
 });
 
+test('Не даёт ложных срабатываний антимата на похожих литературных словах', () => {
+  const res = moderateContent({
+    title: 'Дружная команда корабля и мандарины на столе',
+    description: 'Употреблять травяной чай, подстрахуй друга, скипидар для красок и сабля в музее',
+    tags: '#хлеб #ребенок #учебник',
+    fileName: 'museum_sablya.jpg'
+  });
+  assert.equal(res.status, 'approved');
+});
+
+test('Блокирует нецензурную лексику и грубые оскорбления (антимат)', () => {
+  const maskedSwear = Buffer.from('0L8u0Lgu0Lcu0LQu0LUu0YY=', 'base64').toString('utf8');
+  const res = moderateContent({
+    title: `Проверка фильтра: ${maskedSwear}`,
+    description: 'Тест антимата',
+    fileName: 'photo.jpg'
+  });
+  assert.equal(res.status, 'rejected');
+});
+
 test('Блокирует запрещённые ключевые слова из стоп-листа (rejected)', () => {
   const res = moderateContent({
     title: 'Быстрый заработок и онлайн казино',
