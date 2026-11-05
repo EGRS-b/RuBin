@@ -1,10 +1,15 @@
 let allPins = [];
 let allTopics = [];
 let activeTopic = 'Все';
+let activeDetailPin = null;
+let searchTimer = null;
 
 const pinsGrid = document.getElementById('pinsGrid');
 const topicsBar = document.getElementById('topicsBar');
 const searchInput = document.getElementById('searchInput');
+const safeSearchBanner = document.getElementById('safeSearchBanner');
+const safeSearchReason = document.getElementById('safeSearchReason');
+const resetSearchBtn = document.getElementById('resetSearchBtn');
 
 const toggleCheckerBtn = document.getElementById('toggleCheckerBtn');
 const checkerPanel = document.getElementById('checkerPanel');
@@ -18,6 +23,18 @@ const createModal = document.getElementById('createModal');
 const createPinForm = document.getElementById('createPinForm');
 const pinTopicSelect = document.getElementById('pinTopic');
 const createPinStatus = document.getElementById('createPinStatus');
+
+const detailModal = document.getElementById('detailModal');
+const closeDetailModalBtn = document.getElementById('closeDetailModalBtn');
+const detailImage = document.getElementById('detailImage');
+const detailTopic = document.getElementById('detailTopic');
+const detailTitle = document.getElementById('detailTitle');
+const detailDesc = document.getElementById('detailDesc');
+const detailAuthor = document.getElementById('detailAuthor');
+const detailTags = document.getElementById('detailTags');
+const detailLikeBtn = document.getElementById('detailLikeBtn');
+const detailReportBtn = document.getElementById('detailReportBtn');
+const detailStatusMsg = document.getElementById('detailStatusMsg');
 
 function fallbackSvg(title) {
   const safe = encodeURIComponent(title);
@@ -34,60 +51,133 @@ function renderTopics(topics) {
     btn.onclick = () => {
       activeTopic = topic;
       renderTopics(topics);
-      renderPins();
+      fetchPins();
     };
     topicsBar.appendChild(btn);
   });
 
-  pinTopicSelect.innerHTML = topics
-    .map((t) => `<option value="${t}">${t}</option>`)
-    .join('');
+  pinTopicSelect.innerHTML = topics.map((t) => `<option value="${t}">${t}</option>`).join('');
 }
 
 function renderPins() {
-  const query = searchInput.value.trim().toLowerCase();
-  const filtered = allPins.filter((pin) => {
-    const matchTopic = activeTopic === 'Все' || pin.topic === activeTopic;
-    const matchQuery =
-      !query ||
-      pin.title.toLowerCase().includes(query) ||
-      pin.description.toLowerCase().includes(query) ||
-      pin.tags.toLowerCase().includes(query);
-    return matchTopic && matchQuery;
-  });
-
-  pinsGrid.innerHTML = filtered
+  pinsGrid.innerHTML = allPins
     .map(
       (pin) => `
-      <article class="pin-card">
+      <article class="pin-card" data-id="${pin.id}">
         <img class="pin-image" src="${pin.imageUrl}" alt="${pin.title}"
              onerror="this.onerror=null;this.src='${fallbackSvg(pin.title)}'" />
         <div class="pin-body">
           <span class="pin-topic">${pin.topic}</span>
           <h3 class="pin-title">${pin.title}</h3>
           <p class="pin-desc">${pin.description}</p>
-          <div class="pin-author">Автор: ${pin.author} • ${pin.tags}</div>
+          <div class="pin-footer">
+            <span class="pin-author">${pin.author}</span>
+            <button class="like-chip" data-like-id="${pin.id}">❤️ ${pin.likes || 0}</button>
+          </div>
         </div>
       </article>
     `
     )
     .join('');
+
+  document.querySelectorAll('.pin-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const pin = allPins.find((p) => p.id === Number(card.dataset.id));
+      if (pin) openDetailModal(pin);
+    });
+  });
+
+  document.querySelectorAll('.like-chip').forEach((btn) => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await sendLike(btn.dataset.likeId);
+    });
+  });
 }
 
-async function loadInitialData() {
-  const res = await fetch('/api/pins');
+async function fetchPins() {
+  const params = new URLSearchParams();
+  if (activeTopic !== 'Все') params.set('topic', activeTopic);
+  if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+
+  const res = await fetch(`/api/pins?${params.toString()}`);
   const data = await res.json();
+
+  if (data.topics && !allTopics.length) {
+    allTopics = data.topics;
+    renderTopics(allTopics);
+  }
+
+  if (data.safeSearchBlocked) {
+    safeSearchReason.textContent = data.reason;
+    safeSearchBanner.classList.remove('hidden');
+    pinsGrid.innerHTML = '';
+    return;
+  }
+
+  safeSearchBanner.classList.add('hidden');
   allPins = data.pins || [];
-  allTopics = data.topics || [];
-  renderTopics(allTopics);
   renderPins();
 }
 
-searchInput.addEventListener('input', renderPins);
+async function sendLike(id) {
+  const res = await fetch(`/api/pins/${id}/like`, { method: 'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    await fetchPins();
+    if (activeDetailPin && activeDetailPin.id === Number(id)) {
+      activeDetailPin.likes = data.likes;
+      detailLikeBtn.textContent = `❤️ Нравится (${data.likes})`;
+    }
+  }
+}
 
-toggleCheckerBtn.addEventListener('click', () => {
-  checkerPanel.classList.toggle('hidden');
+function openDetailModal(pin) {
+  activeDetailPin = pin;
+  detailImage.src = pin.imageUrl;
+  detailImage.onerror = () => { detailImage.src = fallbackSvg(pin.title); };
+  detailTopic.textContent = pin.topic;
+  detailTitle.textContent = pin.title;
+  detailDesc.textContent = pin.description;
+  detailAuthor.textContent = `Автор публикации: ${pin.author}`;
+  detailTags.textContent = pin.tags;
+  detailLikeBtn.textContent = `❤️ Нравится (${pin.likes || 0})`;
+  detailStatusMsg.className = 'check-result hidden';
+  detailModal.classList.remove('hidden');
+}
+
+closeDetailModalBtn.addEventListener('click', () => detailModal.classList.add('hidden'));
+
+detailLikeBtn.addEventListener('click', async () => {
+  if (activeDetailPin) await sendLike(activeDetailPin.id);
 });
+
+detailReportBtn.addEventListener('click', async () => {
+  if (!activeDetailPin) return;
+  const res = await fetch(`/api/pins/${activeDetailPin.id}/report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason: 'Отправлено пользователем на проверку соответствия правилам РФ' })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    detailStatusMsg.className = 'check-result pending';
+    detailStatusMsg.textContent = data.message;
+    await fetchPins();
+  }
+});
+
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(fetchPins, 200);
+});
+
+resetSearchBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  fetchPins();
+});
+
+toggleCheckerBtn.addEventListener('click', () => checkerPanel.classList.toggle('hidden'));
 
 runCheckBtn.addEventListener('click', async () => {
   const payload = {
@@ -95,32 +185,27 @@ runCheckBtn.addEventListener('click', async () => {
     description: document.getElementById('checkDesc').value,
     fileName: document.getElementById('checkFile').value
   };
-
   const res = await fetch('/api/moderate-check', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
   const result = await res.json();
-
   checkResult.className = `check-result ${result.status}`;
   checkResult.textContent = `[Статус: ${result.status.toUpperCase()}] ${result.reason}`;
 });
 
-function closeModal() {
+function closeCreateModal() {
   createModal.classList.add('hidden');
   createPinStatus.className = 'check-result hidden';
 }
 
-openCreateModalBtn.addEventListener('click', () => {
-  createModal.classList.remove('hidden');
-});
-closeCreateModalBtn.addEventListener('click', closeModal);
-cancelCreateBtn.addEventListener('click', closeModal);
+openCreateModalBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
+closeCreateModalBtn.addEventListener('click', closeCreateModal);
+cancelCreateBtn.addEventListener('click', closeCreateModal);
 
 createPinForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-
   const formData = new FormData();
   formData.append('title', document.getElementById('pinTitle').value);
   formData.append('description', document.getElementById('pinDesc').value);
@@ -134,10 +219,7 @@ createPinForm.addEventListener('submit', async (e) => {
     formData.append('image', fileInput.files[0]);
   }
 
-  const res = await fetch('/api/pins', {
-    method: 'POST',
-    body: formData
-  });
+  const res = await fetch('/api/pins', { method: 'POST', body: formData });
   const result = await res.json();
 
   createPinStatus.className = `check-result ${result.status}`;
@@ -145,11 +227,11 @@ createPinForm.addEventListener('submit', async (e) => {
 
   if (result.status === 'approved') {
     createPinForm.reset();
-    await loadInitialData();
-    setTimeout(closeModal, 1200);
+    await fetchPins();
+    setTimeout(closeCreateModal, 1100);
   } else if (result.status === 'pending') {
     createPinForm.reset();
   }
 });
 
-loadInitialData();
+fetchPins();
