@@ -229,12 +229,35 @@ function reportPin(id, reason = 'Жалоба пользователя на ко
   return target;
 }
 
+function getPendingPins() {
+  return readPins()
+    .filter((p) => p.status === 'pending')
+    .sort((a, b) => b.id - a.id);
+}
+
+function decidePinStatus(id, status) {
+  if (!['approved', 'rejected'].includes(status)) return null;
+  const pins = readPins();
+  const target = pins.find((p) => p.id === Number(id));
+  if (!target) return null;
+  target.status = status;
+  target.moderationNote =
+    status === 'approved'
+      ? 'Проверено и одобрено модератором RuBin'
+      : 'Отклонено модератором при ручной проверке';
+  writePins(pins);
+  return target;
+}
+
 module.exports = {
   TOPICS,
   getApprovedPins,
+  getPendingPins,
   addPin,
   likePin,
   reportPin,
+  decidePinStatus,
   readPins,
   writePins
 };
+

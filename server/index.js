@@ -130,6 +130,20 @@ app.post('/api/pins/:id/report', (req, res) => {
   });
 });
 
+app.get('/api/moderation/pending', (_req, res) => {
+  const pendingPins = storage.getPendingPins();
+  res.json({ count: pendingPins.length, pins: pendingPins });
+});
+
+app.post('/api/moderation/:id/decision', (req, res) => {
+  const { decision } = req.body || {};
+  const updated = storage.decidePinStatus(req.params.id, decision);
+  if (!updated) {
+    return res.status(400).json({ ok: false, reason: 'Некорректный запрос или пин не найден.' });
+  }
+  return res.json({ ok: true, status: updated.status, pin: updated });
+});
+
 app.listen(PORT, () => {
   console.log(`RuBin server is running on http://localhost:${PORT}`);
 });
