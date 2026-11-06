@@ -51,6 +51,12 @@ body {
   border-color: #be123c;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 .btn-ruby {
   padding: 11px 20px;
   border: none;
@@ -64,6 +70,21 @@ body {
 
 .btn-ruby:hover {
   background: #9f1239;
+}
+
+.btn-outline {
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1.5px solid #be123c;
+  background: #fff;
+  color: #be123c;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background: #fff1f2;
 }
 
 .checker-panel {
@@ -130,7 +151,6 @@ body {
   border-color: #1f1f1f;
 }
 
-/* Плитка в стиле Pinterest */
 .masonry-grid {
   column-count: 4;
   column-gap: 18px;
@@ -148,6 +168,7 @@ body {
   overflow: hidden;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
   transition: transform 0.2s;
+  cursor: pointer;
 }
 
 .pin-card:hover {
@@ -191,25 +212,57 @@ body {
   color: #888;
 }
 
-.topbar-actions {
+.pin-footer {
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
 }
 
-.btn-outline {
-  padding: 10px 18px;
-  border-radius: 999px;
-  border: 1.5px solid #be123c;
-  background: #fff;
-  color: #be123c;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-outline:hover {
+.like-chip {
+  border: 1px solid #fecdd3;
   background: #fff1f2;
+  color: #be123c;
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.like-chip:hover {
+  background: #ffe4e6;
+  transform: scale(1.06);
+}
+
+.safe-search-banner {
+  max-width: 680px;
+  margin: 36px auto;
+  padding: 32px 24px;
+  text-align: center;
+  background: #fff;
+  border: 2px solid #fecdd3;
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(190, 18, 60, 0.08);
+}
+
+.safe-search-icon {
+  font-size: 44px;
+  margin-bottom: 10px;
+}
+
+.safe-search-banner h3 {
+  font-size: 20px;
+  color: #9f1239;
+  margin-bottom: 8px;
+}
+
+.safe-search-banner p {
+  color: #555;
+  margin-bottom: 18px;
+  font-size: 14px;
 }
 
 .modal-backdrop {
@@ -301,4 +354,126 @@ body {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 8px;
+}
+
+.detail-modal-card {
+  max-width: 820px;
+  position: relative;
+}
+
+.detail-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+}
+
+.detail-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .detail-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.detail-image-wrap img {
+  width: 100%;
+  border-radius: 18px;
+  display: block;
+  object-fit: cover;
+  max-height: 520px;
+}
+
+.detail-title {
+  font-size: 22px;
+  margin: 6px 0 10px;
+}
+
+.detail-desc {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.5;
+  margin-bottom: 14px;
+}
+
+.detail-tags {
+  font-size: 13px;
+  color: #be123c;
+  margin: 6px 0 18px;
+}
+
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mod-badge {
+  display: inline-block;
+  margin-left: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #be123c;
+  color: #fff;
+  font-size: 12px;
+}
+
+.pending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pending-item {
+  display: grid;
+  grid-template-columns: 90px 1fr auto;
+  gap: 14px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #ececec;
+  border-radius: 16px;
+  background: #fafafa;
+}
+
+.pending-item img {
+  width: 90px;
+  height: 70px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+
+.pending-note {
+  font-size: 12px;
+  color: #b45309;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.pending-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-approve {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-reject {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 999px;
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
 }

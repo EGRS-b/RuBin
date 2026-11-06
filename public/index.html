@@ -17,15 +17,14 @@
       type="search"
       id="searchInput"
       class="search-input"
-      placeholder="Поиск вдохновения: рецепты, Байкал, семейный уют..."
+      placeholder="Безопасный поиск: рецепты, Байкал, семейный уют..."
     />
 
     <div class="topbar-actions">
-      <button id="openCreateModalBtn" class="btn-ruby">
-        ➕ Создать пин
-      </button>
-      <button id="toggleCheckerBtn" class="btn-outline">
-        🛡 Проверить фильтр РФ
+      <button id="openCreateModalBtn" class="btn-ruby">➕ Создать пин</button>
+      <button id="toggleCheckerBtn" class="btn-outline">🛡 Фильтр РФ</button>
+      <button id="toggleModBtn" class="btn-outline">
+        ⚖️ Модератор <span id="pendingBadge" class="mod-badge">0</span>
       </button>
     </div>
   </header>
@@ -34,42 +33,56 @@
   <section id="checkerPanel" class="checker-panel hidden">
     <h3>🛡 Живая проверка модерации RuBin</h3>
     <p class="checker-hint">
-      Проверьте, как фильтр реагирует на обычный семейный контент, спорные слова («политика») или запрещённые уловки («к.а.з.и.н.о»).
+      Проверьте реакцию фильтра на семейный контент, спорные слова («политика»), нецензурную лексику или уловки («к.а.з.и.н.о»).
     </p>
     <div class="checker-form">
       <input type="text" id="checkTitle" placeholder="Заголовок пина..." />
       <input type="text" id="checkDesc" placeholder="Описание и #теги..." />
-      <input type="text" id="checkFile" placeholder="Имя файла (например: photo.jpg)" />
+      <input type="text" id="checkFile" placeholder="Имя файла (photo.jpg)" />
       <button id="runCheckBtn" class="btn-ruby">Проверить текст</button>
     </div>
     <div id="checkResult" class="check-result hidden"></div>
   </section>
 
+  <!-- Кабинет ручной модерации -->
+  <section id="moderatorPanel" class="checker-panel hidden">
+    <h3>⚖️ Кабинет модератора RuBin — Очередь проверки</h3>
+    <p class="checker-hint">
+      Сюда попадают публикации со спорными формулировками («серый список») и карточки, на которые пожаловались пользователи.
+    </p>
+    <div id="pendingList" class="pending-list"></div>
+  </section>
+
   <!-- Фильтр по темам -->
   <nav id="topicsBar" class="topics-bar"></nav>
 
-  <!-- Сетка пинов как в Pinterest -->
+  <!-- Предупреждение Безопасного поиска РФ -->
+  <section id="safeSearchBanner" class="safe-search-banner hidden">
+    <div class="safe-search-icon">🛡</div>
+    <h3>Запрос ограничен системой «Безопасный поиск RuBin»</h3>
+    <p id="safeSearchReason"></p>
+    <button id="resetSearchBtn" class="btn-ruby">Очистить запрос и вернуться к ленте</button>
+  </section>
+
+  <!-- Сетка пинов -->
   <main id="pinsGrid" class="masonry-grid"></main>
 
-  <!-- Модальное окно создания нового пина -->
+  <!-- Модальное окно создания пина -->
   <div id="createModal" class="modal-backdrop hidden">
     <div class="modal-card">
       <div class="modal-header">
         <h2>📌 Опубликовать новый пин</h2>
         <button id="closeCreateModalBtn" class="modal-close" aria-label="Закрыть">✕</button>
       </div>
-
       <form id="createPinForm" class="create-form">
         <label>
           Название пина *
           <input type="text" id="pinTitle" required placeholder="Например: Утренний туман на Кавказе" />
         </label>
-
         <label>
           Описание
           <textarea id="pinDesc" rows="3" placeholder="Расскажите идею, рецепт или историю кадра..."></textarea>
         </label>
-
         <div class="form-row">
           <label>
             Категория
@@ -80,29 +93,48 @@
             <input type="text" id="pinAuthor" placeholder="Например: Егор" />
           </label>
         </div>
-
         <label>
           Хештеги
           <input type="text" id="pinTags" placeholder="#природа #уют #вдохновение" />
         </label>
-
         <label>
           Загрузить фото с компьютера
           <input type="file" id="pinFile" accept="image/*" />
         </label>
-
         <label>
           Или вставить прямую ссылку на картинку (URL)
           <input type="url" id="pinImageUrl" placeholder="https://example.com/photo.jpg" />
         </label>
-
         <div id="createPinStatus" class="check-result hidden"></div>
-
         <div class="modal-footer">
           <button type="button" id="cancelCreateBtn" class="btn-outline">Отмена</button>
           <button type="submit" class="btn-ruby">Опубликовать пин</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Модальное окно детального просмотра пина -->
+  <div id="detailModal" class="modal-backdrop hidden">
+    <div class="modal-card detail-modal-card">
+      <button id="closeDetailModalBtn" class="modal-close detail-close" aria-label="Закрыть">✕</button>
+      <div class="detail-layout">
+        <div class="detail-image-wrap">
+          <img id="detailImage" src="" alt="" />
+        </div>
+        <div class="detail-info">
+          <span id="detailTopic" class="pin-topic"></span>
+          <h2 id="detailTitle" class="detail-title"></h2>
+          <p id="detailDesc" class="detail-desc"></p>
+          <p id="detailAuthor" class="pin-author"></p>
+          <p id="detailTags" class="detail-tags"></p>
+          <div class="detail-actions">
+            <button id="detailLikeBtn" class="btn-ruby">❤️ Нравится</button>
+            <button id="detailReportBtn" class="btn-outline">⚠️ Пожаловаться</button>
+          </div>
+          <div id="detailStatusMsg" class="check-result hidden"></div>
+        </div>
+      </div>
     </div>
   </div>
 
