@@ -16,6 +16,11 @@ const checkerPanel = document.getElementById('checkerPanel');
 const runCheckBtn = document.getElementById('runCheckBtn');
 const checkResult = document.getElementById('checkResult');
 
+const toggleModBtn = document.getElementById('toggleModBtn');
+const moderatorPanel = document.getElementById('moderatorPanel');
+const pendingBadge = document.getElementById('pendingBadge');
+const pendingList = document.getElementById('pendingList');
+
 const openCreateModalBtn = document.getElementById('openCreateModalBtn');
 const closeCreateModalBtn = document.getElementById('closeCreateModalBtn');
 const cancelCreateBtn = document.getElementById('cancelCreateBtn');
@@ -164,6 +169,7 @@ detailReportBtn.addEventListener('click', async () => {
     detailStatusMsg.className = 'check-result pending';
     detailStatusMsg.textContent = data.message;
     await fetchPins();
+    await loadPendingQueue();
   }
 });
 
@@ -231,7 +237,58 @@ createPinForm.addEventListener('submit', async (e) => {
     setTimeout(closeCreateModal, 1100);
   } else if (result.status === 'pending') {
     createPinForm.reset();
+    await loadPendingQueue();
   }
 });
 
+async function loadPendingQueue() {
+  const res = await fetch('/api/moderation/pending');
+  const data = await res.json();
+  const items = data.pins || [];
+  pendingBadge.textContent = items.length;
+
+  if (!items.length) {
+    pendingList.innerHTML = '<p class="checker-hint">Очередь пуста — все спорные публикации проверены!</p>';
+    return;
+  }
+
+  pendingList.innerHTML = items
+    .map(
+      (pin) => `
+      <div class="pending-item">
+        <img src="${pin.imageUrl}" alt="${pin.title}"
+             onerror="this.onerror=null;this.src='${fallbackSvg(pin.title)}'" />
+        <div>
+          <strong>${pin.title}</strong> <span class="pin-author">(${pin.author})</span>
+          <p class="pin-desc">${pin.description}</p>
+          <div class="pending-note">Причина проверки: ${pin.moderationNote || 'Серый список фильтра'}</div>
+        </div>
+        <div class="pending-actions">
+          <button class="btn-approve" data-decide="approved" data-id="${pin.id}">✅ Одобрить</button>
+          <button class="btn-reject" data-decide="rejected" data-id="${pin.id}">❌ Отклонить</button>
+        </div>
+      </div>
+    `
+    )
+    .join('');
+
+  pendingList.querySelectorAll('button[data-decide]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      await fetch(`/api/moderation/${btn.dataset.id}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ decision: btn.dataset.decide })
+      });
+      await loadPendingQueue();
+      await fetchPins();
+    });
+  });
+}
+
+toggleModBtn.addEventListener('click', () => {
+  moderatorPanel.classList.toggle('hidden');
+  loadPendingQueue();
+});
+
 fetchPins();
+loadPendingQueue();
