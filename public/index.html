@@ -23,6 +23,9 @@
     <div class="topbar-actions">
       <button id="openCreateModalBtn" class="btn-ruby">➕ Создать пин</button>
       <button id="toggleCheckerBtn" class="btn-outline">🛡 Фильтр РФ</button>
+      <button id="toggleModBtn" class="btn-outline">
+        ⚖️ Модератор <span id="pendingBadge" class="mod-badge">0</span>
+      </button>
     </div>
   </header>
 
@@ -39,6 +42,15 @@
       <button id="runCheckBtn" class="btn-ruby">Проверить текст</button>
     </div>
     <div id="checkResult" class="check-result hidden"></div>
+  </section>
+
+  <!-- Кабинет ручной модерации -->
+  <section id="moderatorPanel" class="checker-panel hidden">
+    <h3>⚖️ Кабинет модератора RuBin — Очередь проверки</h3>
+    <p class="checker-hint">
+      Сюда попадают публикации со спорными формулировками («серый список») и карточки, на которые пожаловались пользователи.
+    </p>
+    <div id="pendingList" class="pending-list"></div>
   </section>
 
   <!-- Фильтр по темам -->
