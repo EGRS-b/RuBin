@@ -1,6 +1,8 @@
 let allPins = [];
 let allTopics = [];
+let allBoards = [];
 let activeTopic = 'Все';
+let activeBoard = null;
 let activeDetailPin = null;
 let searchTimer = null;
 
@@ -10,6 +12,16 @@ const searchInput = document.getElementById('searchInput');
 const safeSearchBanner = document.getElementById('safeSearchBanner');
 const safeSearchReason = document.getElementById('safeSearchReason');
 const resetSearchBtn = document.getElementById('resetSearchBtn');
+
+const toggleBoardsBtn = document.getElementById('toggleBoardsBtn');
+const boardsPanel = document.getElementById('boardsPanel');
+const boardsBadge = document.getElementById('boardsBadge');
+const boardsGrid = document.getElementById('boardsGrid');
+const createBoardForm = document.getElementById('createBoardForm');
+const boardFormStatus = document.getElementById('boardFormStatus');
+const activeBoardBar = document.getElementById('activeBoardBar');
+const activeBoardLabel = document.getElementById('activeBoardLabel');
+const clearBoardFilterBtn = document.getElementById('clearBoardFilterBtn');
 
 const toggleCheckerBtn = document.getElementById('toggleCheckerBtn');
 const checkerPanel = document.getElementById('checkerPanel');
@@ -40,6 +52,8 @@ const detailTags = document.getElementById('detailTags');
 const detailLikeBtn = document.getElementById('detailLikeBtn');
 const detailReportBtn = document.getElementById('detailReportBtn');
 const detailStatusMsg = document.getElementById('detailStatusMsg');
+const saveBoardSelect = document.getElementById('saveBoardSelect');
+const saveToBoardBtn = document.getElementById('saveToBoardBtn');
 
 function fallbackSvg(title) {
   const safe = encodeURIComponent(title);
@@ -64,8 +78,108 @@ function renderTopics(topics) {
   pinTopicSelect.innerHTML = topics.map((t) => `<option value="${t}">${t}</option>`).join('');
 }
 
+async function loadBoards() {
+  const res = await fetch('/api/boards');
+  const data = await res.json();
+  allBoards = data.boards || [];
+  boardsBadge.textContent = allBoards.length;
+
+  boardsGrid.innerHTML = allBoards
+    .map(
+      (b) => `
+      <div class="board-card" data-board-id="${b.id}">
+        <h4>📌 ${b.title}</h4>
+        <p>${b.description || 'Персональная подборка пинов'}</p>
+        <span class="board-count">Пинов внутри: ${b.pinIds.length}</span>
+      </div>
+    `
+    )
+    .join('');
+
+  boardsGrid.querySelectorAll('.board-card').forEach((card) => {
+    card.addEventListener('click', () => {
+      const found = allBoards.find((b) => b.id === Number(card.dataset.boardId));
+      if (found) {
+        activeBoard = found;
+        activeBoardLabel.textContent = `📌 Открыта коллекция: «${found.title}» (${found.pinIds.length})`;
+        activeBoardBar.classList.remove('hidden');
+        boardsPanel.classList.add('hidden');
+        renderPins();
+      }
+    });
+  });
+
+  saveBoardSelect.innerHTML = allBoards
+    .map((b) => `<option value="${b.id}">${b.title}</option>`)
+    .join('');
+
+  if (activeBoard) {
+    activeBoard = allBoards.find((b) => b.id === activeBoard.id) || null;
+  }
+}
+
+clearBoardFilterBtn.addEventListener('click', () => {
+  activeBoard = null;
+  activeBoardBar.classList.add('hidden');
+  renderPins();
+});
+
+document.getElementById('logoHome').addEventListener('click', () => {
+  activeBoard = null;
+  activeTopic = 'Все';
+  searchInput.value = '';
+  activeBoardBar.classList.add('hidden');
+  renderTopics(allTopics);
+  fetchPins();
+});
+
+toggleBoardsBtn.addEventListener('click', () => {
+  boardsPanel.classList.toggle('hidden');
+  loadBoards();
+});
+
+createBoardForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    title: document.getElementById('newBoardTitle').value,
+    description: document.getElementById('newBoardDesc').value
+  };
+  const res = await fetch('/api/boards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  boardFormStatus.className = `check-result ${data.ok ? 'approved' : 'rejected'}`;
+  boardFormStatus.textContent = data.reason;
+  if (data.ok) {
+    createBoardForm.reset();
+    await loadBoards();
+  }
+});
+
+saveToBoardBtn.addEventListener('click', async () => {
+  if (!activeDetailPin || !saveBoardSelect.value) return;
+  const res = await fetch(`/api/boards/${saveBoardSelect.value}/pins`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinId: activeDetailPin.id })
+  });
+  const data = await res.json();
+  if (data.ok) {
+    detailStatusMsg.className = 'check-result approved';
+    detailStatusMsg.textContent = data.message;
+    await loadBoards();
+    renderPins();
+  }
+});
+
 function renderPins() {
-  pinsGrid.innerHTML = allPins
+  const visiblePins = activeBoard
+    ? allPins.filter((p) => activeBoard.pinIds.includes(p.id))
+    : allPins;
+
+  pinsGrid.innerHTML = visiblePins
     .map(
       (pin) => `
       <article class="pin-card" data-id="${pin.id}">
@@ -291,4 +405,5 @@ toggleModBtn.addEventListener('click', () => {
 });
 
 fetchPins();
+loadBoards();
 loadPendingQueue();
