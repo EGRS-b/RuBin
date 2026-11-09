@@ -55,6 +55,10 @@ const detailStatusMsg = document.getElementById('detailStatusMsg');
 const saveBoardSelect = document.getElementById('saveBoardSelect');
 const saveToBoardBtn = document.getElementById('saveToBoardBtn');
 
+const commentsList = document.getElementById('commentsList');
+const commentForm = document.getElementById('commentForm');
+const commentStatusMsg = document.getElementById('commentStatusMsg');
+
 function fallbackSvg(title) {
   const safe = encodeURIComponent(title);
   return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300"><rect width="100%" height="100%" fill="%23be123c"/><text x="50%" y="50%" fill="white" font-size="20" font-family="sans-serif" text-anchor="middle">${safe}</text></svg>`;
@@ -191,7 +195,10 @@ function renderPins() {
           <p class="pin-desc">${pin.description}</p>
           <div class="pin-footer">
             <span class="pin-author">${pin.author}</span>
-            <button class="like-chip" data-like-id="${pin.id}">❤️ ${pin.likes || 0}</button>
+            <div class="pin-stats">
+              <span class="comment-count-chip">💬 ${(pin.comments || []).length}</span>
+              <button class="like-chip" data-like-id="${pin.id}">❤️ ${pin.likes || 0}</button>
+            </div>
           </div>
         </div>
       </article>
@@ -251,6 +258,19 @@ async function sendLike(id) {
   }
 }
 
+async function loadComments(pinId) {
+  const res = await fetch(`/api/pins/${pinId}/comments`);
+  const data = await res.json();
+  const list = data.comments || [];
+  if (!list.length) {
+    commentsList.innerHTML = '<p class="checker-hint">Пока нет комментариев — станьте первым!</p>';
+    return;
+  }
+  commentsList.innerHTML = list
+    .map((c) => `<div class="comment-item"><strong>${c.author}:</strong> ${c.text}</div>`)
+    .join('');
+}
+
 function openDetailModal(pin) {
   activeDetailPin = pin;
   detailImage.src = pin.imageUrl;
@@ -262,8 +282,32 @@ function openDetailModal(pin) {
   detailTags.textContent = pin.tags;
   detailLikeBtn.textContent = `❤️ Нравится (${pin.likes || 0})`;
   detailStatusMsg.className = 'check-result hidden';
+  commentStatusMsg.className = 'check-result hidden';
   detailModal.classList.remove('hidden');
+  loadComments(pin.id);
 }
+
+commentForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!activeDetailPin) return;
+  const payload = {
+    author: document.getElementById('commentAuthor').value,
+    text: document.getElementById('commentText').value
+  };
+  const res = await fetch(`/api/pins/${activeDetailPin.id}/comments`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json();
+  commentStatusMsg.className = `check-result ${data.ok ? 'approved' : 'rejected'}`;
+  commentStatusMsg.textContent = data.reason;
+  if (data.ok) {
+    document.getElementById('commentText').value = '';
+    await loadComments(activeDetailPin.id);
+    await fetchPins();
+  }
+});
 
 closeDetailModalBtn.addEventListener('click', () => detailModal.classList.add('hidden'));
 
