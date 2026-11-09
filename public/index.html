@@ -154,6 +154,17 @@
             <button id="detailReportBtn" class="btn-outline">⚠️ Пожаловаться</button>
           </div>
           <div id="detailStatusMsg" class="check-result hidden"></div>
+
+          <div class="comments-section">
+            <h4>💬 Комментарии (проверяются фильтром РФ)</h4>
+            <div id="commentsList" class="comments-list"></div>
+            <form id="commentForm" class="comment-form">
+              <input type="text" id="commentAuthor" placeholder="Ваше имя" />
+              <input type="text" id="commentText" required placeholder="Напишите добрый комментарий..." />
+              <button type="submit" class="btn-ruby">Отправить</button>
+            </form>
+            <div id="commentStatusMsg" class="check-result hidden"></div>
+          </div>
         </div>
       </div>
     </div>
