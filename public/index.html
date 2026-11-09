@@ -8,7 +8,7 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="logo">
+    <div id="logoHome" class="logo">
       <span class="logo-gem">◆</span>
       <span class="logo-text">RuBin</span>
     </div>
@@ -22,6 +22,9 @@
 
     <div class="topbar-actions">
       <button id="openCreateModalBtn" class="btn-ruby">➕ Создать пин</button>
+      <button id="toggleBoardsBtn" class="btn-outline">
+        📌 Мои доски <span id="boardsBadge" class="mod-badge">0</span>
+      </button>
       <button id="toggleCheckerBtn" class="btn-outline">🛡 Фильтр РФ</button>
       <button id="toggleModBtn" class="btn-outline">
         ⚖️ Модератор <span id="pendingBadge" class="mod-badge">0</span>
@@ -29,7 +32,20 @@
     </div>
   </header>
 
-  <!-- Панель живой демонстрации модерации -->
+  <section id="boardsPanel" class="checker-panel hidden">
+    <h3>📌 Мои доски вдохновения (Коллекции)</h3>
+    <p class="checker-hint">
+      Нажмите на любую доску, чтобы открыть сохранённые в ней пины, или создайте новую коллекцию (названия проверяются фильтром РФ).
+    </p>
+    <div id="boardsGrid" class="boards-grid"></div>
+    <form id="createBoardForm" class="board-create-form">
+      <input type="text" id="newBoardTitle" required placeholder="Название новой доски..." />
+      <input type="text" id="newBoardDesc" placeholder="Краткое описание коллекции..." />
+      <button type="submit" class="btn-ruby">Создать доску</button>
+    </form>
+    <div id="boardFormStatus" class="check-result hidden"></div>
+  </section>
+
   <section id="checkerPanel" class="checker-panel hidden">
     <h3>🛡 Живая проверка модерации RuBin</h3>
     <p class="checker-hint">
@@ -44,7 +60,6 @@
     <div id="checkResult" class="check-result hidden"></div>
   </section>
 
-  <!-- Кабинет ручной модерации -->
   <section id="moderatorPanel" class="checker-panel hidden">
     <h3>⚖️ Кабинет модератора RuBin — Очередь проверки</h3>
     <p class="checker-hint">
@@ -53,10 +68,13 @@
     <div id="pendingList" class="pending-list"></div>
   </section>
 
-  <!-- Фильтр по темам -->
   <nav id="topicsBar" class="topics-bar"></nav>
 
-  <!-- Предупреждение Безопасного поиска РФ -->
+  <div id="activeBoardBar" class="active-board-bar hidden">
+    <span id="activeBoardLabel"></span>
+    <button id="clearBoardFilterBtn" class="btn-outline">Показать все пины</button>
+  </div>
+
   <section id="safeSearchBanner" class="safe-search-banner hidden">
     <div class="safe-search-icon">🛡</div>
     <h3>Запрос ограничен системой «Безопасный поиск RuBin»</h3>
@@ -64,10 +82,8 @@
     <button id="resetSearchBtn" class="btn-ruby">Очистить запрос и вернуться к ленте</button>
   </section>
 
-  <!-- Сетка пинов -->
   <main id="pinsGrid" class="masonry-grid"></main>
 
-  <!-- Модальное окно создания пина -->
   <div id="createModal" class="modal-backdrop hidden">
     <div class="modal-card">
       <div class="modal-header">
@@ -114,7 +130,6 @@
     </div>
   </div>
 
-  <!-- Модальное окно детального просмотра пина -->
   <div id="detailModal" class="modal-backdrop hidden">
     <div class="modal-card detail-modal-card">
       <button id="closeDetailModalBtn" class="modal-close detail-close" aria-label="Закрыть">✕</button>
@@ -128,6 +143,12 @@
           <p id="detailDesc" class="detail-desc"></p>
           <p id="detailAuthor" class="pin-author"></p>
           <p id="detailTags" class="detail-tags"></p>
+
+          <div class="save-board-box">
+            <select id="saveBoardSelect"></select>
+            <button id="saveToBoardBtn" class="btn-ruby">📌 На доску</button>
+          </div>
+
           <div class="detail-actions">
             <button id="detailLikeBtn" class="btn-ruby">❤️ Нравится</button>
             <button id="detailReportBtn" class="btn-outline">⚠️ Пожаловаться</button>
