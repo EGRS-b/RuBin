@@ -3,6 +3,7 @@ const path = require('path');
 const express = require('express');
 const multer = require('multer');
 const storage = require('./storage');
+const boardsStorage = require('./boardsStorage');
 
 let moderateContent;
 let checkSearchQuery;
@@ -22,13 +23,24 @@ try {
   checkSearchQuery = () => ({ blocked: false, reason: null });
 }
 
+let moderateBoardTitle;
+try {
+  ({ moderateBoardTitle } = require('./commentModeration'));
+} catch {
+  moderateBoardTitle = (title = '', description = '') => {
+    if (String(title).trim().length < 2) {
+      return { allowed: false, reason: 'Название доски слишком короткое.' };
+    }
+    const v = moderateContent({ title, description });
+    return { allowed: v.status === 'approved', reason: v.reason };
+  };
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -142,6 +154,34 @@ app.post('/api/moderation/:id/decision', (req, res) => {
     return res.status(400).json({ ok: false, reason: 'Некорректный запрос или пин не найден.' });
   }
   return res.json({ ok: true, status: updated.status, pin: updated });
+});
+
+app.get('/api/boards', (_req, res) => {
+  res.json({ boards: boardsStorage.getBoards() });
+});
+
+app.post('/api/boards', (req, res) => {
+  const { title = '', description = '' } = req.body || {};
+  const check = moderateBoardTitle(title, description);
+  if (!check.allowed) {
+    return res.status(400).json({ ok: false, reason: check.reason });
+  }
+  const board = boardsStorage.createBoard({ title, description });
+  return res.status(201).json({ ok: true, reason: check.reason, board });
+});
+
+app.post('/api/boards/:id/pins', (req, res) => {
+  const { pinId } = req.body || {};
+  const result = boardsStorage.togglePinInBoard(req.params.id, pinId);
+  if (!result) {
+    return res.status(404).json({ ok: false, reason: 'Коллекция не найдена.' });
+  }
+  return res.json({
+    ok: true,
+    added: result.added,
+    message: result.added ? 'Пин сохранён в коллекцию!' : 'Пин убран из коллекции.',
+    board: result.board
+  });
 });
 
 app.listen(PORT, () => {
