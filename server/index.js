@@ -23,14 +23,18 @@ try {
   checkSearchQuery = () => ({ blocked: false, reason: null });
 }
 
+let moderateComment;
 let moderateBoardTitle;
 try {
-  ({ moderateBoardTitle } = require('./commentModeration'));
+  ({ moderateComment, moderateBoardTitle } = require('./commentModeration'));
 } catch {
+  moderateComment = ({ author = '', text = '' } = {}) => {
+    if (!String(text).trim()) return { allowed: false, reason: 'Введите текст комментария.' };
+    const v = moderateContent({ title: author, description: text });
+    return { allowed: v.status === 'approved', reason: v.reason };
+  };
   moderateBoardTitle = (title = '', description = '') => {
-    if (String(title).trim().length < 2) {
-      return { allowed: false, reason: 'Название доски слишком короткое.' };
-    }
+    if (String(title).trim().length < 2) return { allowed: false, reason: 'Слишком короткое название.' };
     const v = moderateContent({ title, description });
     return { allowed: v.status === 'approved', reason: v.reason };
   };
@@ -140,6 +144,23 @@ app.post('/api/pins/:id/report', (req, res) => {
     message: 'Жалоба принята! Карточка временно скрыта из ленты и передана модератору.',
     pin: updated
   });
+});
+
+app.get('/api/pins/:id/comments', (req, res) => {
+  const comments = storage.getPinComments(req.params.id);
+  if (!comments) return res.status(404).json({ ok: false, reason: 'Пин не найден' });
+  return res.json({ ok: true, comments });
+});
+
+app.post('/api/pins/:id/comments', (req, res) => {
+  const { author = '', text = '' } = req.body || {};
+  const check = moderateComment({ author, text });
+  if (!check.allowed) {
+    return res.status(400).json({ ok: false, reason: check.reason });
+  }
+  const comment = storage.addPinComment(req.params.id, { author, text });
+  if (!comment) return res.status(404).json({ ok: false, reason: 'Пин не найден' });
+  return res.status(201).json({ ok: true, reason: check.reason, comment });
 });
 
 app.get('/api/moderation/pending', (_req, res) => {
