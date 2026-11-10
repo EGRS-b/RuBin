@@ -1,0 +1,14 @@
+{
+  "linkPatterns": [
+    "http://",
+    "https://",
+    "www.",
+    "t.me/",
+    "vk.cc/",
+    "bit.ly/",
+    ".ru/",
+    ".com/"
+  ],
+  "maxCommentLength": 300,
+  "maxBoardTitleLength": 60
+}
