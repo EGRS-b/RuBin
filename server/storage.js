@@ -26,6 +26,9 @@ const INITIAL_PINS = [
     likes: 28,
     reports: 0,
     moderationNote: '',
+    comments: [
+      { id: 1, author: 'Наталья', text: 'Мечтаю увидеть зимний Байкал своими глазами!', createdAt: '2026-10-21T09:15:00.000Z' }
+    ],
     createdAt: '2026-10-20T10:00:00.000Z'
   },
   {
@@ -40,6 +43,9 @@ const INITIAL_PINS = [
     likes: 19,
     reports: 0,
     moderationNote: '',
+    comments: [
+      { id: 1, author: 'Ирина', text: 'Готовила по похожему рецепту на выходных — дети в восторге!', createdAt: '2026-10-22T11:00:00.000Z' }
+    ],
     createdAt: '2026-10-21T12:30:00.000Z'
   },
   {
@@ -54,6 +60,7 @@ const INITIAL_PINS = [
     likes: 34,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-22T15:10:00.000Z'
   },
   {
@@ -68,6 +75,7 @@ const INITIAL_PINS = [
     likes: 15,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-23T09:40:00.000Z'
   },
   {
@@ -82,6 +90,7 @@ const INITIAL_PINS = [
     likes: 22,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-24T14:20:00.000Z'
   },
   {
@@ -96,6 +105,7 @@ const INITIAL_PINS = [
     likes: 17,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-25T17:00:00.000Z'
   },
   {
@@ -110,6 +120,7 @@ const INITIAL_PINS = [
     likes: 31,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-26T08:15:00.000Z'
   },
   {
@@ -124,6 +135,7 @@ const INITIAL_PINS = [
     likes: 25,
     reports: 0,
     moderationNote: '',
+    comments: [],
     createdAt: '2026-10-27T18:45:00.000Z'
   },
   {
@@ -138,6 +150,7 @@ const INITIAL_PINS = [
     likes: 0,
     reports: 0,
     moderationNote: 'Автофильтр (серый список): Общественно-политическая тематика',
+    comments: [],
     createdAt: '2026-10-28T11:00:00.000Z'
   }
 ];
@@ -147,14 +160,13 @@ function normalizePin(pin) {
     ...pin,
     likes: typeof pin.likes === 'number' ? pin.likes : (pin.id * 3 + 7),
     reports: typeof pin.reports === 'number' ? pin.reports : 0,
-    moderationNote: pin.moderationNote || ''
+    moderationNote: pin.moderationNote || '',
+    comments: Array.isArray(pin.comments) ? pin.comments : []
   };
 }
 
 function ensureDataFile() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_PINS, null, 2), 'utf8');
   }
@@ -172,9 +184,7 @@ function writePins(pins) {
 
 function getApprovedPins({ topic, q } = {}) {
   let pins = readPins().filter((p) => p.status === 'approved');
-  if (topic && topic !== 'Все') {
-    pins = pins.filter((p) => p.topic === topic);
-  }
+  if (topic && topic !== 'Все') pins = pins.filter((p) => p.topic === topic);
   if (q) {
     const query = q.toLowerCase();
     pins = pins.filter(
@@ -185,6 +195,12 @@ function getApprovedPins({ topic, q } = {}) {
     );
   }
   return pins.sort((a, b) => b.id - a.id);
+}
+
+function getPendingPins() {
+  return readPins()
+    .filter((p) => p.status === 'pending')
+    .sort((a, b) => b.id - a.id);
 }
 
 function addPin({ title, description, topic, tags, author, imageUrl, status, moderationNote = '' }) {
@@ -202,6 +218,7 @@ function addPin({ title, description, topic, tags, author, imageUrl, status, mod
     likes: 0,
     reports: 0,
     moderationNote,
+    comments: [],
     createdAt: new Date().toISOString()
   };
   pins.push(newPin);
@@ -229,12 +246,6 @@ function reportPin(id, reason = 'Жалоба пользователя на ко
   return target;
 }
 
-function getPendingPins() {
-  return readPins()
-    .filter((p) => p.status === 'pending')
-    .sort((a, b) => b.id - a.id);
-}
-
 function decidePinStatus(id, status) {
   if (!['approved', 'rejected'].includes(status)) return null;
   const pins = readPins();
@@ -249,6 +260,29 @@ function decidePinStatus(id, status) {
   return target;
 }
 
+function getPinComments(id) {
+  const target = readPins().find((p) => p.id === Number(id));
+  return target ? target.comments : null;
+}
+
+function addPinComment(id, { author, text }) {
+  const pins = readPins();
+  const target = pins.find((p) => p.id === Number(id));
+  if (!target) return null;
+  const nextCommentId = target.comments.length
+    ? Math.max(...target.comments.map((c) => c.id)) + 1
+    : 1;
+  const comment = {
+    id: nextCommentId,
+    author: String(author || 'Гость RuBin').trim() || 'Гость RuBin',
+    text: String(text).trim(),
+    createdAt: new Date().toISOString()
+  };
+  target.comments.push(comment);
+  writePins(pins);
+  return comment;
+}
+
 module.exports = {
   TOPICS,
   getApprovedPins,
@@ -257,7 +291,8 @@ module.exports = {
   likePin,
   reportPin,
   decidePinStatus,
+  getPinComments,
+  addPinComment,
   readPins,
   writePins
 };
-
