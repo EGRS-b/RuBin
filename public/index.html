@@ -64,11 +64,50 @@
   </section>
 
   <section id="moderatorPanel" class="checker-panel hidden">
-    <h3>⚖️ Кабинет модератора RuBin — Очередь проверки</h3>
-    <p class="checker-hint">
-      Сюда попадают публикации со спорными формулировками («серый список») и карточки, на которые пожаловались пользователи.
-    </p>
+    <div class="mod-panel-header">
+      <div>
+        <h3>⚖️ Кабинет модератора RuBin — Аналитика и очередь проверки</h3>
+        <p class="checker-hint">
+          Детерминированный контроль контента по законодательству РФ (без ИИ): сводка угроз, ручная проверка и журнал событий.
+        </p>
+      </div>
+      <button id="refreshModBtn" class="btn-outline">🔄 Обновить журнал</button>
+    </div>
+
+    <div id="modStatsGrid" class="mod-stats-grid">
+      <div class="mod-stat-card">
+        <div class="mod-stat-label">Всего проверок в журнале</div>
+        <div id="statTotalEvents" class="mod-stat-value">0</div>
+      </div>
+      <div class="mod-stat-card">
+        <div class="mod-stat-label">Пресечено нарушений РФ</div>
+        <div id="statBlockedCount" class="mod-stat-value">0</div>
+      </div>
+      <div class="mod-stat-card">
+        <div class="mod-stat-label">Антиспам (ссылки)</div>
+        <div id="statSpamCount" class="mod-stat-value">0</div>
+      </div>
+      <div class="mod-stat-card">
+        <div class="mod-stat-label">В очереди / Жалоб</div>
+        <div id="statPendingReports" class="mod-stat-value">0 / 0</div>
+      </div>
+    </div>
+
+    <div class="mod-section-title">📥 Очередь публикаций на ручной проверке</div>
     <div id="pendingList" class="pending-list"></div>
+
+    <div class="audit-section">
+      <div class="audit-header">
+        <div class="mod-section-title">📋 Живой журнал аудита безопасности РФ</div>
+        <select id="auditActionFilter" class="audit-filter-select">
+          <option value="">Все события</option>
+          <option value="blocked">Только блокировки</option>
+          <option value="flagged">На ручной проверке</option>
+          <option value="approved">Разрешённый контент</option>
+        </select>
+      </div>
+      <div id="auditLogList" class="audit-log-list"></div>
+    </div>
   </section>
 
   <nav id="topicsBar" class="topics-bar"></nav>
