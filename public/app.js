@@ -2,12 +2,15 @@ let allPins = [];
 let allTopics = [];
 let allBoards = [];
 let activeTopic = 'Все';
+let activeSort = 'newest';
 let activeBoard = null;
 let activeDetailPin = null;
 let searchTimer = null;
 
 const pinsGrid = document.getElementById('pinsGrid');
 const topicsBar = document.getElementById('topicsBar');
+const sortBar = document.getElementById('sortBar');
+const themeToggleBtn = document.getElementById('themeToggleBtn');
 const searchInput = document.getElementById('searchInput');
 const safeSearchBanner = document.getElementById('safeSearchBanner');
 const safeSearchReason = document.getElementById('safeSearchReason');
@@ -58,6 +61,34 @@ const saveToBoardBtn = document.getElementById('saveToBoardBtn');
 const commentsList = document.getElementById('commentsList');
 const commentForm = document.getElementById('commentForm');
 const commentStatusMsg = document.getElementById('commentStatusMsg');
+
+function applyTheme(theme) {
+  const isDark = theme === 'dark';
+  document.body.dataset.theme = isDark ? 'dark' : 'light';
+  themeToggleBtn.textContent = isDark ? '☀️ Светлая тема' : '🌙 Ночная тема';
+  localStorage.setItem('rubin_theme', isDark ? 'dark' : 'light');
+}
+
+applyTheme(localStorage.getItem('rubin_theme') || 'light');
+
+themeToggleBtn.addEventListener('click', () => {
+  const next = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+  applyTheme(next);
+});
+
+function syncSortChips() {
+  sortBar.querySelectorAll('.sort-chip').forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.sort === activeSort);
+  });
+}
+
+sortBar.querySelectorAll('.sort-chip').forEach((chip) => {
+  chip.addEventListener('click', () => {
+    activeSort = chip.dataset.sort || 'newest';
+    syncSortChips();
+    fetchPins();
+  });
+});
 
 function fallbackSvg(title) {
   const safe = encodeURIComponent(title);
@@ -131,8 +162,10 @@ clearBoardFilterBtn.addEventListener('click', () => {
 document.getElementById('logoHome').addEventListener('click', () => {
   activeBoard = null;
   activeTopic = 'Все';
+  activeSort = 'newest';
   searchInput.value = '';
   activeBoardBar.classList.add('hidden');
+  syncSortChips();
   renderTopics(allTopics);
   fetchPins();
 });
@@ -225,6 +258,7 @@ async function fetchPins() {
   const params = new URLSearchParams();
   if (activeTopic !== 'Все') params.set('topic', activeTopic);
   if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
+  params.set('sort', activeSort);
 
   const res = await fetch(`/api/pins?${params.toString()}`);
   const data = await res.json();

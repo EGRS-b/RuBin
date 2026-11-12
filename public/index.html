@@ -29,6 +29,9 @@
       <button id="toggleModBtn" class="btn-outline">
         ⚖️ Модератор <span id="pendingBadge" class="mod-badge">0</span>
       </button>
+      <button id="themeToggleBtn" class="btn-outline" title="Переключить тему оформления">
+        🌙 Ночная тема
+      </button>
     </div>
   </header>
 
@@ -69,6 +72,15 @@
   </section>
 
   <nav id="topicsBar" class="topics-bar"></nav>
+
+  <div class="feed-toolbar">
+    <span class="sort-label">Сортировка ленты:</span>
+    <div id="sortBar" class="sort-bar">
+      <button class="sort-chip active" data-sort="newest">🕒 Новое</button>
+      <button class="sort-chip" data-sort="popular">🔥 Популярное</button>
+      <button class="sort-chip" data-sort="discussed">💬 Обсуждаемое</button>
+    </div>
+  </div>
 
   <div id="activeBoardBar" class="active-board-bar hidden">
     <span id="activeBoardLabel"></span>
