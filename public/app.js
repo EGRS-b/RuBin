@@ -35,6 +35,13 @@ const toggleModBtn = document.getElementById('toggleModBtn');
 const moderatorPanel = document.getElementById('moderatorPanel');
 const pendingBadge = document.getElementById('pendingBadge');
 const pendingList = document.getElementById('pendingList');
+const refreshModBtn = document.getElementById('refreshModBtn');
+const statTotalEvents = document.getElementById('statTotalEvents');
+const statBlockedCount = document.getElementById('statBlockedCount');
+const statSpamCount = document.getElementById('statSpamCount');
+const statPendingReports = document.getElementById('statPendingReports');
+const auditActionFilter = document.getElementById('auditActionFilter');
+const auditLogList = document.getElementById('auditLogList');
 
 const openCreateModalBtn = document.getElementById('openCreateModalBtn');
 const closeCreateModalBtn = document.getElementById('closeCreateModalBtn');
@@ -61,6 +68,30 @@ const saveToBoardBtn = document.getElementById('saveToBoardBtn');
 const commentsList = document.getElementById('commentsList');
 const commentForm = document.getElementById('commentForm');
 const commentStatusMsg = document.getElementById('commentStatusMsg');
+
+const SOURCE_LABELS = {
+  pin: 'Пин',
+  search: 'Поиск',
+  comment: 'Комментарий',
+  board: 'Доска',
+  report: 'Жалоба',
+  moderator: 'Модератор',
+  system: 'Система'
+};
+
+const ACTION_LABELS = {
+  blocked: 'Заблокировано',
+  flagged: 'На проверке',
+  approved: 'Разрешено'
+};
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
 function applyTheme(theme) {
   const isDark = theme === 'dark';
@@ -123,8 +154,8 @@ async function loadBoards() {
     .map(
       (b) => `
       <div class="board-card" data-board-id="${b.id}">
-        <h4>📌 ${b.title}</h4>
-        <p>${b.description || 'Персональная подборка пинов'}</p>
+        <h4>📌 ${escapeHtml(b.title)}</h4>
+        <p>${escapeHtml(b.description || 'Персональная подборка пинов')}</p>
         <span class="board-count">Пинов внутри: ${b.pinIds.length}</span>
       </div>
     `
@@ -145,7 +176,7 @@ async function loadBoards() {
   });
 
   saveBoardSelect.innerHTML = allBoards
-    .map((b) => `<option value="${b.id}">${b.title}</option>`)
+    .map((b) => `<option value="${b.id}">${escapeHtml(b.title)}</option>`)
     .join('');
 
   if (activeBoard) {
@@ -192,6 +223,8 @@ createBoardForm.addEventListener('submit', async (e) => {
   if (data.ok) {
     createBoardForm.reset();
     await loadBoards();
+  } else if (!moderatorPanel.classList.contains('hidden')) {
+    await refreshModeratorDashboard();
   }
 });
 
@@ -220,14 +253,14 @@ function renderPins() {
     .map(
       (pin) => `
       <article class="pin-card" data-id="${pin.id}">
-        <img class="pin-image" src="${pin.imageUrl}" alt="${pin.title}"
+        <img class="pin-image" src="${pin.imageUrl}" alt="${escapeHtml(pin.title)}"
              onerror="this.onerror=null;this.src='${fallbackSvg(pin.title)}'" />
         <div class="pin-body">
-          <span class="pin-topic">${pin.topic}</span>
-          <h3 class="pin-title">${pin.title}</h3>
-          <p class="pin-desc">${pin.description}</p>
+          <span class="pin-topic">${escapeHtml(pin.topic)}</span>
+          <h3 class="pin-title">${escapeHtml(pin.title)}</h3>
+          <p class="pin-desc">${escapeHtml(pin.description)}</p>
           <div class="pin-footer">
-            <span class="pin-author">${pin.author}</span>
+            <span class="pin-author">${escapeHtml(pin.author)}</span>
             <div class="pin-stats">
               <span class="comment-count-chip">💬 ${(pin.comments || []).length}</span>
               <button class="like-chip" data-like-id="${pin.id}">❤️ ${pin.likes || 0}</button>
@@ -272,6 +305,9 @@ async function fetchPins() {
     safeSearchReason.textContent = data.reason;
     safeSearchBanner.classList.remove('hidden');
     pinsGrid.innerHTML = '';
+    if (!moderatorPanel.classList.contains('hidden')) {
+      await refreshModeratorDashboard();
+    }
     return;
   }
 
@@ -301,7 +337,7 @@ async function loadComments(pinId) {
     return;
   }
   commentsList.innerHTML = list
-    .map((c) => `<div class="comment-item"><strong>${c.author}:</strong> ${c.text}</div>`)
+    .map((c) => `<div class="comment-item"><strong>${escapeHtml(c.author)}:</strong> ${escapeHtml(c.text)}</div>`)
     .join('');
 }
 
@@ -340,6 +376,8 @@ commentForm.addEventListener('submit', async (e) => {
     document.getElementById('commentText').value = '';
     await loadComments(activeDetailPin.id);
     await fetchPins();
+  } else if (!moderatorPanel.classList.contains('hidden')) {
+    await refreshModeratorDashboard();
   }
 });
 
@@ -361,7 +399,7 @@ detailReportBtn.addEventListener('click', async () => {
     detailStatusMsg.className = 'check-result pending';
     detailStatusMsg.textContent = data.message;
     await fetchPins();
-    await loadPendingQueue();
+    await refreshModeratorDashboard();
   }
 });
 
@@ -426,12 +464,77 @@ createPinForm.addEventListener('submit', async (e) => {
   if (result.status === 'approved') {
     createPinForm.reset();
     await fetchPins();
+    await refreshModeratorDashboard();
     setTimeout(closeCreateModal, 1100);
   } else if (result.status === 'pending') {
     createPinForm.reset();
-    await loadPendingQueue();
+    await refreshModeratorDashboard();
+  } else {
+    await refreshModeratorDashboard();
   }
 });
+
+async function loadModerationStats() {
+  try {
+    const res = await fetch('/api/moderation/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    const s = data.stats || {};
+    statTotalEvents.textContent = s.totalEvents || 0;
+    statBlockedCount.textContent = s.blockedCount || 0;
+    statSpamCount.textContent = s.spamBlockedCount || 0;
+    statPendingReports.textContent = `${s.pendingPins || 0} / ${s.totalReports || 0}`;
+  } catch {
+    // Безопасный fallback, если серверная ветка статистики ещё не слита
+  }
+}
+
+async function loadAuditLog() {
+  try {
+    const params = new URLSearchParams({ limit: '25' });
+    if (auditActionFilter.value) params.set('action', auditActionFilter.value);
+    const res = await fetch(`/api/moderation/audit?${params.toString()}`);
+    if (!res.ok) {
+      auditLogList.innerHTML = '<p class="checker-hint">Журнал аудита ожидает подключения серверного API.</p>';
+      return;
+    }
+    const data = await res.json();
+    const logs = data.logs || [];
+    if (!logs.length) {
+      auditLogList.innerHTML = '<p class="checker-hint">Записей по выбранному фильтру пока нет.</p>';
+      return;
+    }
+
+    auditLogList.innerHTML = logs
+      .map((item) => {
+        const formattedTime = new Date(item.timestamp).toLocaleString('ru-RU', {
+          day: '2-digit',
+          month: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+        const actionLabel = ACTION_LABELS[item.action] || item.action;
+        const sourceLabel = SOURCE_LABELS[item.source] || item.source;
+        return `
+          <div class="audit-row">
+            <div class="audit-row-top">
+              <div class="audit-badges">
+                <span class="audit-badge ${escapeHtml(item.action)}">${escapeHtml(actionLabel)}</span>
+                <span class="audit-badge source">${escapeHtml(sourceLabel)}</span>
+                <strong>${escapeHtml(item.categoryLabel || 'Проверка контента')}</strong>
+                <span>— ${escapeHtml(item.target)}</span>
+              </div>
+              <span class="audit-time">${escapeHtml(formattedTime)}</span>
+            </div>
+            <div class="audit-reason">${escapeHtml(item.reason)}</div>
+          </div>
+        `;
+      })
+      .join('');
+  } catch {
+    auditLogList.innerHTML = '<p class="checker-hint">Не удалось загрузить журнал аудита.</p>';
+  }
+}
 
 async function loadPendingQueue() {
   const res = await fetch('/api/moderation/pending');
@@ -448,12 +551,12 @@ async function loadPendingQueue() {
     .map(
       (pin) => `
       <div class="pending-item">
-        <img src="${pin.imageUrl}" alt="${pin.title}"
+        <img src="${pin.imageUrl}" alt="${escapeHtml(pin.title)}"
              onerror="this.onerror=null;this.src='${fallbackSvg(pin.title)}'" />
         <div>
-          <strong>${pin.title}</strong> <span class="pin-author">(${pin.author})</span>
-          <p class="pin-desc">${pin.description}</p>
-          <div class="pending-note">Причина проверки: ${pin.moderationNote || 'Серый список фильтра'}</div>
+          <strong>${escapeHtml(pin.title)}</strong> <span class="pin-author">(${escapeHtml(pin.author)})</span>
+          <p class="pin-desc">${escapeHtml(pin.description)}</p>
+          <div class="pending-note">Причина проверки: ${escapeHtml(pin.moderationNote || 'Серый список фильтра')}</div>
         </div>
         <div class="pending-actions">
           <button class="btn-approve" data-decide="approved" data-id="${pin.id}">✅ Одобрить</button>
@@ -471,15 +574,24 @@ async function loadPendingQueue() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision: btn.dataset.decide })
       });
-      await loadPendingQueue();
+      await refreshModeratorDashboard();
       await fetchPins();
     });
   });
 }
 
+async function refreshModeratorDashboard() {
+  await Promise.all([loadPendingQueue(), loadModerationStats(), loadAuditLog()]);
+}
+
+refreshModBtn.addEventListener('click', refreshModeratorDashboard);
+auditActionFilter.addEventListener('change', loadAuditLog);
+
 toggleModBtn.addEventListener('click', () => {
   moderatorPanel.classList.toggle('hidden');
-  loadPendingQueue();
+  if (!moderatorPanel.classList.contains('hidden')) {
+    refreshModeratorDashboard();
+  }
 });
 
 fetchPins();
