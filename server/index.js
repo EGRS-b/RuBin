@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const storage = require('./storage');
 const boardsStorage = require('./boardsStorage');
+const { normalizeSortMode } = require('./pinSorter');
 
 let moderateContent;
 let checkSearchQuery;
@@ -65,20 +66,25 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/pins', (req, res) => {
-  const { topic, q = '' } = req.query;
-  const searchCheck = checkSearchQuery(q);
+  const { topic, q = '', search = '', sort = 'newest' } = req.query;
+  const queryText = q || search || '';
+  const activeSort = normalizeSortMode(sort);
+
+  const searchCheck = checkSearchQuery(queryText);
   if (searchCheck.blocked) {
     return res.json({
       topics: storage.TOPICS,
+      sort: activeSort,
       pins: [],
       safeSearchBlocked: true,
       reason: searchCheck.reason
     });
   }
 
-  const pins = storage.getApprovedPins({ topic, q });
+  const pins = storage.getApprovedPins({ topic, q: queryText, sort: activeSort });
   return res.json({
     topics: storage.TOPICS,
+    sort: activeSort,
     pins,
     safeSearchBlocked: false,
     reason: null
@@ -205,6 +211,10 @@ app.post('/api/boards/:id/pins', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`RuBin server is running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`RuBin server is running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
