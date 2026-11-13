@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { SORT_MODES, sortPins } = require('./pinSorter');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'pins.json');
@@ -182,7 +183,7 @@ function writePins(pins) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(pins, null, 2), 'utf8');
 }
 
-function getApprovedPins({ topic, q } = {}) {
+function getApprovedPins({ topic, q, sort = 'newest' } = {}) {
   let pins = readPins().filter((p) => p.status === 'approved');
   if (topic && topic !== 'Все') pins = pins.filter((p) => p.topic === topic);
   if (q) {
@@ -194,7 +195,7 @@ function getApprovedPins({ topic, q } = {}) {
         p.tags.toLowerCase().includes(query)
     );
   }
-  return pins.sort((a, b) => b.id - a.id);
+  return sortPins(pins, sort);
 }
 
 function getPendingPins() {
@@ -285,6 +286,7 @@ function addPinComment(id, { author, text }) {
 
 module.exports = {
   TOPICS,
+  SORT_MODES,
   getApprovedPins,
   getPendingPins,
   addPin,
