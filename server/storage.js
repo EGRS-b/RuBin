@@ -204,6 +204,16 @@ function getPendingPins() {
     .sort((a, b) => b.id - a.id);
 }
 
+function getModerationOverview() {
+  const pins = readPins();
+  return {
+    approvedPins: pins.filter((p) => p.status === 'approved').length,
+    pendingPins: pins.filter((p) => p.status === 'pending').length,
+    rejectedPins: pins.filter((p) => p.status === 'rejected').length,
+    totalReports: pins.reduce((sum, p) => sum + (p.reports || 0), 0)
+  };
+}
+
 function addPin({ title, description, topic, tags, author, imageUrl, status, moderationNote = '' }) {
   const pins = readPins();
   const nextId = pins.length ? Math.max(...pins.map((p) => p.id)) + 1 : 1;
@@ -289,6 +299,7 @@ module.exports = {
   SORT_MODES,
   getApprovedPins,
   getPendingPins,
+  getModerationOverview,
   addPin,
   likePin,
   reportPin,
