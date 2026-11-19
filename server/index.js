@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const storage = require('./storage');
 const boardsStorage = require('./boardsStorage');
+const { normalizeSortMode } = require('./pinSorter');
 
 let moderateContent;
 let checkSearchQuery;
@@ -40,6 +41,41 @@ try {
   };
 }
 
+let recordAuditEvent;
+let getAuditLogs;
+let getAuditSummary;
+try {
+  ({ recordAuditEvent, getAuditLogs, getAuditSummary } = require('./auditLogger'));
+} catch {
+  const memoryAudit = [];
+  recordAuditEvent = ({ source = 'system', action = 'approved', target = '', reason = '' } = {}) => {
+    const entry = {
+      id: memoryAudit.length + 1,
+      timestamp: new Date().toISOString(),
+      source,
+      action: action === 'rejected' ? 'blocked' : action === 'pending' ? 'flagged' : action,
+      category: 'policy_check',
+      categoryLabel: 'Проверка контента РФ',
+      target,
+      reason
+    };
+    memoryAudit.unshift(entry);
+    return entry;
+  };
+  getAuditLogs = ({ limit = 30, action = '' } = {}) =>
+    memoryAudit
+      .filter((e) => !action || e.action === action)
+      .slice(0, Number(limit) || 30);
+  getAuditSummary = () => ({
+    totalEvents: memoryAudit.length,
+    blockedCount: memoryAudit.filter((e) => e.action === 'blocked').length,
+    flaggedCount: memoryAudit.filter((e) => e.action === 'flagged').length,
+    approvedCount: memoryAudit.filter((e) => e.action === 'approved').length,
+    spamBlockedCount: 0,
+    byCategory: {}
+  });
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -65,20 +101,31 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.get('/api/pins', (req, res) => {
-  const { topic, q = '' } = req.query;
-  const searchCheck = checkSearchQuery(q);
+  const { topic, q = '', search = '', sort = 'newest' } = req.query;
+  const queryText = q || search || '';
+  const activeSort = normalizeSortMode(sort);
+
+  const searchCheck = checkSearchQuery(queryText);
   if (searchCheck.blocked) {
+    recordAuditEvent({
+      source: 'search',
+      action: 'blocked',
+      target: 'Поисковый запрос ограничен',
+      reason: searchCheck.reason
+    });
     return res.json({
       topics: storage.TOPICS,
+      sort: activeSort,
       pins: [],
       safeSearchBlocked: true,
       reason: searchCheck.reason
     });
   }
 
-  const pins = storage.getApprovedPins({ topic, q });
+  const pins = storage.getApprovedPins({ topic, q: queryText, sort: activeSort });
   return res.json({
     topics: storage.TOPICS,
+    sort: activeSort,
     pins,
     safeSearchBlocked: false,
     reason: null
@@ -102,6 +149,12 @@ app.post('/api/pins', upload.single('image'), (req, res) => {
   const verdict = moderateContent({ title, description, tags, fileName: originalFileName });
   if (verdict.status === 'rejected') {
     if (req.file) fs.unlinkSync(req.file.path);
+    recordAuditEvent({
+      source: 'pin',
+      action: 'blocked',
+      target: title.trim(),
+      reason: verdict.reason
+    });
     return res.status(400).json({ ok: false, status: 'rejected', reason: verdict.reason });
   }
 
@@ -119,6 +172,13 @@ app.post('/api/pins', upload.single('image'), (req, res) => {
     imageUrl: finalImageUrl,
     status: verdict.status,
     moderationNote: verdict.status === 'pending' ? verdict.reason : ''
+  });
+
+  recordAuditEvent({
+    source: 'pin',
+    action: verdict.status,
+    target: savedPin.title,
+    reason: verdict.reason
   });
 
   return res.status(201).json({
@@ -139,6 +199,12 @@ app.post('/api/pins/:id/report', (req, res) => {
   const { reason = 'Нарушение правил сообщества RuBin' } = req.body || {};
   const updated = storage.reportPin(req.params.id, reason);
   if (!updated) return res.status(404).json({ ok: false, reason: 'Пин не найден' });
+  recordAuditEvent({
+    source: 'report',
+    action: 'flagged',
+    target: updated.title,
+    reason: updated.moderationNote
+  });
   return res.json({
     ok: true,
     message: 'Жалоба принята! Карточка временно скрыта из ленты и передана модератору.',
@@ -156,6 +222,12 @@ app.post('/api/pins/:id/comments', (req, res) => {
   const { author = '', text = '' } = req.body || {};
   const check = moderateComment({ author, text });
   if (!check.allowed) {
+    recordAuditEvent({
+      source: 'comment',
+      action: 'blocked',
+      target: `Пин #${req.params.id} (${author || 'Гость'})`,
+      reason: check.reason
+    });
     return res.status(400).json({ ok: false, reason: check.reason });
   }
   const comment = storage.addPinComment(req.params.id, { author, text });
@@ -168,12 +240,36 @@ app.get('/api/moderation/pending', (_req, res) => {
   res.json({ count: pendingPins.length, pins: pendingPins });
 });
 
+app.get('/api/moderation/audit', (req, res) => {
+  const { limit = 25, action = '' } = req.query;
+  const logs = getAuditLogs({ limit, action });
+  res.json({ ok: true, count: logs.length, logs });
+});
+
+app.get('/api/moderation/stats', (_req, res) => {
+  const summary = getAuditSummary();
+  const overview = storage.getModerationOverview();
+  res.json({
+    ok: true,
+    stats: {
+      ...summary,
+      ...overview
+    }
+  });
+});
+
 app.post('/api/moderation/:id/decision', (req, res) => {
   const { decision } = req.body || {};
   const updated = storage.decidePinStatus(req.params.id, decision);
   if (!updated) {
     return res.status(400).json({ ok: false, reason: 'Некорректный запрос или пин не найден.' });
   }
+  recordAuditEvent({
+    source: 'moderator',
+    action: updated.status === 'approved' ? 'approved' : 'blocked',
+    target: updated.title,
+    reason: updated.moderationNote
+  });
   return res.json({ ok: true, status: updated.status, pin: updated });
 });
 
@@ -185,6 +281,12 @@ app.post('/api/boards', (req, res) => {
   const { title = '', description = '' } = req.body || {};
   const check = moderateBoardTitle(title, description);
   if (!check.allowed) {
+    recordAuditEvent({
+      source: 'board',
+      action: 'blocked',
+      target: title || 'Новая доска',
+      reason: check.reason
+    });
     return res.status(400).json({ ok: false, reason: check.reason });
   }
   const board = boardsStorage.createBoard({ title, description });
@@ -205,6 +307,10 @@ app.post('/api/boards/:id/pins', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`RuBin server is running on http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`RuBin server is running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;
