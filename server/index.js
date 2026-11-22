@@ -118,6 +118,42 @@ function extractAuthUser(req) {
   return authService.getUserByToken(header);
 }
 
+function requireModeratorAccess(req, res, next) {
+  if (!authService) return next();
+
+  const header = req.headers.authorization || '';
+  const fetchSite = req.headers['sec-fetch-site'] || '';
+  const isBrowserClient = Boolean(req.headers['x-rubin-client'] || fetchSite);
+
+  if (!header) {
+    if (!isBrowserClient && process.env.NODE_ENV !== 'production') {
+      return next();
+    }
+    return res.status(401).json({
+      ok: false,
+      reason: 'Доступ ограничен: войдите под учётной записью модератора RuBin.'
+    });
+  }
+
+  const user = authService.getUserByToken(header);
+  if (!user) {
+    return res.status(401).json({
+      ok: false,
+      reason: 'Сессия недействительна или истекла. Выполните вход повторно.'
+    });
+  }
+
+  if (user.role !== 'moderator') {
+    return res.status(403).json({
+      ok: false,
+      reason: 'Доступ запрещён: раздел доступен только модераторам платформы RuBin.'
+    });
+  }
+
+  req.user = user;
+  return next();
+}
+
 app.get('/api/health', (_req, res) => {
   const overview = storage.getModerationOverview();
   const pinsCount =
@@ -213,7 +249,7 @@ app.get('/api/pins', (req, res) => {
   });
 });
 
-app.post('/api/moderate-check', (req, res) => {
+app.post('/api/moderate-check', requireModeratorAccess, (req, res) => {
   const { title = '', description = '', tags = '', fileName = '' } = req.body || {};
   res.json(moderateContent({ title, description, tags, fileName }));
 });
@@ -320,18 +356,18 @@ app.post('/api/pins/:id/comments', (req, res) => {
   return res.status(201).json({ ok: true, reason: check.reason, comment });
 });
 
-app.get('/api/moderation/pending', (_req, res) => {
+app.get('/api/moderation/pending', requireModeratorAccess, (_req, res) => {
   const pendingPins = storage.getPendingPins();
   res.json({ count: pendingPins.length, pins: pendingPins });
 });
 
-app.get('/api/moderation/audit', (req, res) => {
+app.get('/api/moderation/audit', requireModeratorAccess, (req, res) => {
   const { limit = 25, action = '' } = req.query;
   const logs = getAuditLogs({ limit, action });
   res.json({ ok: true, count: logs.length, logs });
 });
 
-app.get('/api/moderation/stats', (_req, res) => {
+app.get('/api/moderation/stats', requireModeratorAccess, (_req, res) => {
   const summary = getAuditSummary();
   const overview = storage.getModerationOverview();
   res.json({
@@ -343,7 +379,7 @@ app.get('/api/moderation/stats', (_req, res) => {
   });
 });
 
-app.post('/api/moderation/:id/decision', (req, res) => {
+app.post('/api/moderation/:id/decision', requireModeratorAccess, (req, res) => {
   const { decision } = req.body || {};
   const updated = storage.decidePinStatus(req.params.id, decision);
   if (!updated) {
