@@ -1,0 +1,35 @@
+name: RuBin CI — Проверка кода и автотесты
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  verify:
+    name: Синтаксис, словари РФ и автотесты (Node.js 20)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Получение исходного кода репозитория
+        uses: actions/checkout@v4
+
+      - name: Настройка среды Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Чистая установка зависимостей
+        run: npm ci
+
+      - name: Проверка синтаксиса JS и JSON-словарей модерации
+        run: npm run check
+
+      - name: Запуск модульных и интеграционных автотестов
+        run: npm test

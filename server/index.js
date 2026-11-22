@@ -2,9 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const multer = require('multer');
+const pkg = require('../package.json');
 const storage = require('./storage');
 const boardsStorage = require('./boardsStorage');
 const { normalizeSortMode } = require('./pinSorter');
+const { securityHeadersMiddleware, buildHealthPayload } = require('./securityHeaders');
 
 let moderateContent;
 let checkSearchQuery;
@@ -77,7 +79,11 @@ try {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
+
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
 
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -93,11 +99,24 @@ const upload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }
 });
 
+app.disable('x-powered-by');
+app.use(securityHeadersMiddleware);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', service: 'RuBin API', timestamp: new Date().toISOString() });
+  const overview = storage.getModerationOverview();
+  const pinsCount =
+    (overview.approvedPins || 0) + (overview.pendingPins || 0) + (overview.rejectedPins || 0);
+  const boardsCount = boardsStorage.getBoards().length;
+
+  res.json(
+    buildHealthPayload({
+      version: pkg.version || '1.0.0',
+      pinsCount,
+      boardsCount
+    })
+  );
 });
 
 app.get('/api/pins', (req, res) => {
@@ -307,9 +326,13 @@ app.post('/api/boards/:id/pins', (req, res) => {
   });
 });
 
+app.use('/api', (_req, res) => {
+  res.status(404).json({ ok: false, reason: 'Маршрут API RuBin не найден.' });
+});
+
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`RuBin server is running on http://localhost:${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`RuBin server is running on http://${HOST}:${PORT}`);
   });
 }
 

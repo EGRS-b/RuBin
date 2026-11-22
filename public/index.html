@@ -32,6 +32,9 @@
       <button id="themeToggleBtn" class="btn-outline" title="Переключить тему оформления">
         🌙 Ночная тема
       </button>
+      <button id="openAboutModalBtn" class="btn-outline" title="О платформе и системе безопасности РФ">
+        ℹ️ О системе
+      </button>
     </div>
   </header>
 
@@ -217,6 +220,65 @@
             <div id="commentStatusMsg" class="check-result hidden"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="footer-left">
+      <div id="healthPill" class="health-pill">
+        <span class="health-dot"></span>
+        <span id="healthStatusText">Проверка связи с сервером RuBin...</span>
+      </div>
+      <span class="footer-caption">
+        RuBin — отечественная платформа визуального вдохновения (детерминированная фильтрация контента без ИИ)
+      </span>
+    </div>
+    <button id="footerAboutBtn" class="btn-outline">🛡 О платформе и защите РФ</button>
+  </footer>
+
+  <div id="aboutModal" class="modal-backdrop hidden">
+    <div class="modal-card about-modal-card">
+      <div class="modal-header">
+        <h2>🛡 О платформе RuBin и контуре безопасности РФ</h2>
+        <button id="closeAboutModalBtn" class="modal-close" aria-label="Закрыть">✕</button>
+      </div>
+      <p class="about-lead">
+        <strong>RuBin</strong> — веб-сервис обмена визуальными идеями и коллекциями вдохновения с многоуровневой системой словарной модерации (без использования ИИ) в соответствии с законодательством РФ.
+      </p>
+
+      <div class="system-status-grid">
+        <div class="system-status-item">
+          <div class="system-status-label">Статус API-сервера</div>
+          <div id="sysHealthState" class="system-status-value">Онлайн (OK)</div>
+        </div>
+        <div class="system-status-item">
+          <div class="system-status-label">Версия сборки</div>
+          <div id="sysVersion" class="system-status-value">v1.1.0</div>
+        </div>
+        <div class="system-status-item">
+          <div class="system-status-label">Аптайм сервера</div>
+          <div id="sysUptime" class="system-status-value">Активен</div>
+        </div>
+        <div class="system-status-item">
+          <div class="system-status-label">Режим модерации</div>
+          <div id="sysModerationMode" class="system-status-value">Словарный РФ (без ИИ)</div>
+        </div>
+      </div>
+
+      <div class="compliance-box">
+        <h4>Активные рубежи фильтрации контента:</h4>
+        <ul class="compliance-list">
+          <li><strong>ФЗ № 149-ФЗ и № 436-ФЗ:</strong> автоматическая блокировка запрещённых тем и защита детей от деструктивной информации.</li>
+          <li><strong>ФЗ № 53-ФЗ (Антимат):</strong> фильтрация нецензурной брани с нормализацией символов и защитой от обхода («к.а.з.и.н.о»).</li>
+          <li><strong>Безопасный поиск и Антиспам:</strong> пресечение запрещённых поисковых запросов и внешних рекламных ссылок в комментариях и досках.</li>
+          <li><strong>Серый список и Аудит:</strong> передача спорных публикаций модератору и фиксация всех срабатываний в журнале безопасности.</li>
+        </ul>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" id="refreshHealthBtn" class="btn-outline">🔄 Проверить диагностику</button>
+        <button type="button" id="okAboutModalBtn" class="btn-ruby">Понятно</button>
       </div>
     </div>
   </div>
