@@ -58,3 +58,64 @@ test('API отклоняет запрещённые пины, спам-комм�
     await ctx.close();
   }
 });
+
+test('Жалобы пользователей переводят карточку в очередь ручной проверки (POST /api/pins/:id/report)', async () => {
+  const ctx = await startTestServer();
+  try {
+    const reportRes = await ctx.requestJson('/api/pins/2/report', {
+      method: 'POST',
+      body: { reason: 'Подозрение на спам в описании' }
+    });
+    assert.equal(reportRes.status, 200);
+    assert.equal(reportRes.data.ok, true);
+    assert.equal(reportRes.data.pin.status, 'pending');
+    assert.equal(reportRes.data.pin.reports, 1);
+
+    const checkLive = await ctx.requestJson('/api/moderate-check', {
+      method: 'POST',
+      body: { title: 'Тёплый семейный ужин', description: 'Рецепт пирога с яблоками' }
+    });
+    assert.equal(checkLive.status, 200);
+    assert.equal(checkLive.data.status, 'approved');
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('Очередь модератора и сводка угроз /api/moderation/stats отражают ручные решения', async () => {
+  const ctx = await startTestServer();
+  try {
+    const pendingBefore = await ctx.requestJson('/api/moderation/pending');
+    assert.equal(pendingBefore.status, 200);
+    assert.ok(pendingBefore.data.count >= 1);
+    const targetId = pendingBefore.data.pins[0].id;
+
+    const decision = await ctx.requestJson(`/api/moderation/${targetId}/decision`, {
+      method: 'POST',
+      body: { decision: 'approved' }
+    });
+    assert.equal(decision.status, 200);
+    assert.equal(decision.data.status, 'approved');
+
+    const stats = await ctx.requestJson('/api/moderation/stats');
+    assert.equal(stats.status, 200);
+    assert.equal(stats.data.ok, true);
+    assert.ok(stats.data.stats.totalEvents >= 1);
+    assert.ok(stats.data.stats.approvedPins >= 9);
+  } finally {
+    await ctx.close();
+  }
+});
+
+test('Диагностический маршрут GET /api/health подтверждает готовность сервиса RuBin', async () => {
+  const ctx = await startTestServer();
+  try {
+    const health = await ctx.requestJson('/api/health');
+    assert.equal(health.status, 200);
+    assert.equal(health.data.status, 'ok');
+    assert.equal(health.data.service, 'RuBin API');
+    assert.ok(Boolean(health.data.timestamp));
+  } finally {
+    await ctx.close();
+  }
+});
