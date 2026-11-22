@@ -867,3 +867,160 @@ body[data-theme="dark"] .comments-section,
 body[data-theme="dark"] .audit-section {
   border-top-color: #2e3444;
 }
+/* Подвал платформы и индикатор диагностики системы (Этап 5) */
+.site-footer {
+  margin-top: 24px;
+  padding: 20px 28px 28px;
+  background: #ffffff;
+  border-top: 1px solid #ececec;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  color: #166534;
+}
+
+.health-pill.offline {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.health-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+}
+
+.health-pill.offline .health-dot {
+  background: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+
+.footer-caption {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.about-modal-card {
+  max-width: 640px;
+}
+
+.about-lead {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4b5563;
+  margin-bottom: 16px;
+}
+
+.system-status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.system-status-item {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff1f2;
+  border: 1px solid #fecdd3;
+}
+
+.system-status-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.system-status-value {
+  font-size: 15px;
+  font-weight: 800;
+  color: #be123c;
+}
+
+.compliance-box {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+  margin-bottom: 14px;
+}
+
+.compliance-box h4 {
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.compliance-list {
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #374151;
+}
+
+body[data-theme="dark"] .site-footer {
+  background: #181b22;
+  border-top-color: #2a2f3d;
+}
+
+body[data-theme="dark"] .health-pill {
+  background: #132a1c;
+  border-color: #1f5132;
+  color: #86efac;
+}
+
+body[data-theme="dark"] .health-pill.offline {
+  background: #2c1519;
+  border-color: #6b2137;
+  color: #fda4af;
+}
+
+body[data-theme="dark"] .footer-caption,
+body[data-theme="dark"] .about-lead,
+body[data-theme="dark"] .system-status-label {
+  color: #9ca3af;
+}
+
+body[data-theme="dark"] .system-status-item {
+  background: #2a1922;
+  border-color: #6b2137;
+}
+
+body[data-theme="dark"] .system-status-value {
+  color: #fb7185;
+}
+
+body[data-theme="dark"] .compliance-box {
+  background: #232834;
+  border-color: #323846;
+}
+
+body[data-theme="dark"] .compliance-list {
+  color: #e5e7eb;
+}

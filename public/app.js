@@ -69,6 +69,19 @@ const commentsList = document.getElementById('commentsList');
 const commentForm = document.getElementById('commentForm');
 const commentStatusMsg = document.getElementById('commentStatusMsg');
 
+const healthPill = document.getElementById('healthPill');
+const healthStatusText = document.getElementById('healthStatusText');
+const openAboutModalBtn = document.getElementById('openAboutModalBtn');
+const footerAboutBtn = document.getElementById('footerAboutBtn');
+const aboutModal = document.getElementById('aboutModal');
+const closeAboutModalBtn = document.getElementById('closeAboutModalBtn');
+const okAboutModalBtn = document.getElementById('okAboutModalBtn');
+const refreshHealthBtn = document.getElementById('refreshHealthBtn');
+const sysHealthState = document.getElementById('sysHealthState');
+const sysVersion = document.getElementById('sysVersion');
+const sysUptime = document.getElementById('sysUptime');
+const sysModerationMode = document.getElementById('sysModerationMode');
+
 const SOURCE_LABELS = {
   pin: 'Пин',
   search: 'Поиск',
@@ -594,6 +607,55 @@ toggleModBtn.addEventListener('click', () => {
   }
 });
 
+function formatUptime(seconds) {
+  if (typeof seconds !== 'number' || Number.isNaN(seconds)) {
+    return 'Сервер активен';
+  }
+  if (seconds < 60) return `${seconds} сек.`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} мин. ${seconds % 60} сек.`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours} ч. ${minutes % 60} мин.`;
+}
+
+async function loadSystemHealth() {
+  try {
+    const res = await fetch('/api/health');
+    if (!res.ok) throw new Error('Health endpoint unavailable');
+    const data = await res.json();
+    const versionText = data.version ? `v${data.version}` : 'v1.1.0';
+    const modeLabel = data.moderationLabel || 'Словарная фильтрация РФ (без ИИ)';
+
+    healthPill.classList.remove('offline');
+    healthStatusText.textContent = `Онлайн • ${modeLabel} • ${versionText}`;
+
+    sysHealthState.textContent = data.status === 'ok' ? 'Онлайн (200 OK)' : 'Проверка...';
+    sysVersion.textContent = versionText;
+    sysUptime.textContent = formatUptime(data.uptimeSeconds);
+    sysModerationMode.textContent = modeLabel;
+  } catch {
+    healthPill.classList.add('offline');
+    healthStatusText.textContent = 'Автономный режим • Защита РФ активна';
+    sysHealthState.textContent = 'Ожидание ответа API';
+  }
+}
+
+function openAboutModal() {
+  aboutModal.classList.remove('hidden');
+  loadSystemHealth();
+}
+
+function closeAboutModal() {
+  aboutModal.classList.add('hidden');
+}
+
+openAboutModalBtn.addEventListener('click', openAboutModal);
+footerAboutBtn.addEventListener('click', openAboutModal);
+closeAboutModalBtn.addEventListener('click', closeAboutModal);
+okAboutModalBtn.addEventListener('click', closeAboutModal);
+refreshHealthBtn.addEventListener('click', loadSystemHealth);
+
 fetchPins();
 loadBoards();
 loadPendingQueue();
+loadSystemHealth();
