@@ -1,36 +1,9 @@
 const dictionary = require('./moderationDictionary.json');
 const { hasProfanity } = require('./profanityList');
-
-const HOMOGLYPHS = {
-  a: 'а', c: 'с', e: 'е', k: 'к', m: 'м',
-  o: 'о', p: 'р', t: 'т', x: 'х', y: 'у'
-};
-
-function toCyrillicLookalikes(str) {
-  return str.replace(/[acekmoptxy]/g, (ch) => HOMOGLYPHS[ch] || ch);
-}
+const { normalizeAndTokenize } = require('./textNormalizer');
 
 function extractTokens(rawText) {
-  if (!rawText) return [];
-
-  const lower = String(rawText).toLowerCase().replace(/ё/g, 'е');
-  const collapsed = lower.replace(/(?<=[а-яa-z0-9])[.\-*+|/\\]+(?=[а-яa-z0-9])/g, '');
-  const rawTokens = collapsed.split(/[^а-яa-z0-9]+/).filter(Boolean);
-
-  const tokens = [...rawTokens];
-  let buffer = '';
-  for (const t of rawTokens) {
-    if (t.length === 1) {
-      buffer += t;
-    } else {
-      if (buffer.length >= 3) tokens.push(buffer);
-      buffer = '';
-    }
-  }
-  if (buffer.length >= 3) tokens.push(buffer);
-
-  const cyrTokens = tokens.map(toCyrillicLookalikes);
-  return Array.from(new Set([...tokens, ...cyrTokens]));
+  return normalizeAndTokenize(rawText);
 }
 
 function matchesRule(tokens, ruleWord) {
