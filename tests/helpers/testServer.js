@@ -3,7 +3,7 @@ const path = require('path');
 const http = require('http');
 
 const DATA_DIR = path.join(__dirname, '..', '..', 'server', 'data');
-const DATA_FILES = ['pins.json', 'boards.json', 'auditLog.json'];
+const DATA_FILES = ['pins.json', 'boards.json', 'auditLog.json', 'users.json', 'sessions.json'];
 
 function snapshotDataFiles() {
   const backup = {};
