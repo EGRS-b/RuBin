@@ -155,6 +155,35 @@ function syncAuthorInputs() {
   }
 }
 
+function syncRoleUI() {
+  if (currentUser) {
+    openAuthModalBtn.classList.add('hidden');
+    userChip.classList.remove('hidden');
+    userDisplayName.textContent = currentUser.displayName;
+    if (isModerator()) {
+      userRoleBadge.textContent = 'Модератор';
+      userRoleBadge.classList.add('moderator');
+      toggleCheckerBtn.classList.remove('hidden');
+      toggleModBtn.classList.remove('hidden');
+    } else {
+      userRoleBadge.textContent = 'Участник';
+      userRoleBadge.classList.remove('moderator');
+      toggleCheckerBtn.classList.add('hidden');
+      toggleModBtn.classList.add('hidden');
+      checkerPanel.classList.add('hidden');
+      moderatorPanel.classList.add('hidden');
+    }
+    syncAuthorInputs();
+  } else {
+    openAuthModalBtn.classList.remove('hidden');
+    userChip.classList.add('hidden');
+    toggleCheckerBtn.classList.add('hidden');
+    toggleModBtn.classList.add('hidden');
+    checkerPanel.classList.add('hidden');
+    moderatorPanel.classList.add('hidden');
+  }
+}
+
 function setAuthTab(mode) {
   const isLogin = mode === 'login';
   tabLoginBtn.classList.toggle('active', isLogin);
@@ -185,7 +214,8 @@ tabRegisterBtn.addEventListener('click', () => setAuthTab('register'));
 async function restoreSession() {
   if (!authToken) {
     currentUser = null;
-        return;
+    syncRoleUI();
+    return;
   }
   try {
     const res = await apiFetch('/api/auth/me');
@@ -193,16 +223,19 @@ async function restoreSession() {
       authToken = '';
       localStorage.removeItem('rubin_auth_token');
       currentUser = null;
-            return;
+      syncRoleUI();
+      return;
     }
     const data = await res.json();
     currentUser = data.user || null;
-        if (isModerator()) {
+    syncRoleUI();
+    if (isModerator()) {
       await loadPendingQueue();
     }
   } catch {
     currentUser = null;
-      }
+    syncRoleUI();
+  }
 }
 
 loginForm.addEventListener('submit', async (e) => {
@@ -226,7 +259,8 @@ loginForm.addEventListener('submit', async (e) => {
     authToken = data.token;
     localStorage.setItem('rubin_auth_token', authToken);
     currentUser = data.user;
-        loginForm.reset();
+    syncRoleUI();
+    loginForm.reset();
     closeAuthModal();
     if (isModerator()) {
       await refreshModeratorDashboard();
@@ -259,7 +293,8 @@ registerForm.addEventListener('submit', async (e) => {
     authToken = data.token;
     localStorage.setItem('rubin_auth_token', authToken);
     currentUser = data.user;
-        registerForm.reset();
+    syncRoleUI();
+    registerForm.reset();
     closeAuthModal();
   } catch {
     registerStatusMsg.className = 'check-result rejected';
@@ -278,7 +313,8 @@ logoutBtn.addEventListener('click', async () => {
   localStorage.removeItem('rubin_auth_token');
   pinAuthorInput.value = '';
   commentAuthorInput.value = '';
-  });
+  syncRoleUI();
+});
 
 function applyTheme(theme) {
   const isDark = theme === 'dark';
@@ -540,7 +576,8 @@ function openDetailModal(pin) {
   detailLikeBtn.textContent = `❤️ Нравится (${pin.likes || 0})`;
   detailStatusMsg.className = 'check-result hidden';
   commentStatusMsg.className = 'check-result hidden';
-    detailModal.classList.remove('hidden');
+  syncAuthorInputs();
+  detailModal.classList.remove('hidden');
   loadComments(pin.id);
 }
 
@@ -633,7 +670,8 @@ function closeCreateModal() {
 }
 
 openCreateModalBtn.addEventListener('click', () => {
-    createModal.classList.remove('hidden');
+  syncAuthorInputs();
+  createModal.classList.remove('hidden');
 });
 closeCreateModalBtn.addEventListener('click', closeCreateModal);
 cancelCreateBtn.addEventListener('click', closeCreateModal);
@@ -661,12 +699,14 @@ createPinForm.addEventListener('submit', async (e) => {
 
   if (result.status === 'approved') {
     createPinForm.reset();
-        await fetchPins();
+    syncAuthorInputs();
+    await fetchPins();
     await refreshModeratorDashboard();
     setTimeout(closeCreateModal, 1100);
   } else if (result.status === 'pending') {
     createPinForm.reset();
-        await refreshModeratorDashboard();
+    syncAuthorInputs();
+    await refreshModeratorDashboard();
   } else {
     await refreshModeratorDashboard();
   }
@@ -846,6 +886,7 @@ closeAboutModalBtn.addEventListener('click', closeAboutModal);
 okAboutModalBtn.addEventListener('click', closeAboutModal);
 refreshHealthBtn.addEventListener('click', loadSystemHealth);
 
+syncRoleUI();
 restoreSession();
 fetchPins();
 loadBoards();
