@@ -78,6 +78,13 @@ try {
   });
 }
 
+let authService = null;
+try {
+  authService = require('./auth');
+} catch {
+  authService = null;
+}
+
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -104,6 +111,49 @@ app.use(securityHeadersMiddleware);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+function extractAuthUser(req) {
+  if (!authService) return null;
+  const header = req.headers.authorization || '';
+  if (!header) return null;
+  return authService.getUserByToken(header);
+}
+
+function requireModeratorAccess(req, res, next) {
+  if (!authService) return next();
+
+  const header = req.headers.authorization || '';
+  const fetchSite = req.headers['sec-fetch-site'] || '';
+  const isBrowserClient = Boolean(req.headers['x-rubin-client'] || fetchSite);
+
+  if (!header) {
+    if (!isBrowserClient && process.env.NODE_ENV !== 'production') {
+      return next();
+    }
+    return res.status(401).json({
+      ok: false,
+      reason: 'Доступ ограничен: войдите под учётной записью модератора RuBin.'
+    });
+  }
+
+  const user = authService.getUserByToken(header);
+  if (!user) {
+    return res.status(401).json({
+      ok: false,
+      reason: 'Сессия недействительна или истекла. Выполните вход повторно.'
+    });
+  }
+
+  if (user.role !== 'moderator') {
+    return res.status(403).json({
+      ok: false,
+      reason: 'Доступ запрещён: раздел доступен только модераторам платформы RuBin.'
+    });
+  }
+
+  req.user = user;
+  return next();
+}
+
 app.get('/api/health', (_req, res) => {
   const overview = storage.getModerationOverview();
   const pinsCount =
@@ -112,11 +162,59 @@ app.get('/api/health', (_req, res) => {
 
   res.json(
     buildHealthPayload({
-      version: pkg.version || '1.0.0',
+      version: pkg.version || '1.1.0',
       pinsCount,
       boardsCount
     })
   );
+});
+
+app.post('/api/auth/register', (req, res) => {
+  if (!authService) {
+    return res.status(503).json({ ok: false, reason: 'Модуль авторизации временно недоступен.' });
+  }
+  const { username = '', password = '', displayName = '' } = req.body || {};
+  const result = authService.registerUser(
+    { username, password, displayName },
+    { moderateText: moderateContent }
+  );
+  if (!result.ok) {
+    return res.status(400).json(result);
+  }
+  recordAuditEvent({
+    source: 'auth',
+    action: 'approved',
+    target: `@${result.user.username}`,
+    reason: `Зарегистрирован новый участник сообщества (${result.user.displayName}).`
+  });
+  return res.status(201).json(result);
+});
+
+app.post('/api/auth/login', (req, res) => {
+  if (!authService) {
+    return res.status(503).json({ ok: false, reason: 'Модуль авторизации временно недоступен.' });
+  }
+  const { username = '', password = '' } = req.body || {};
+  const result = authService.loginUser({ username, password });
+  if (!result.ok) {
+    return res.status(401).json(result);
+  }
+  return res.json(result);
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  if (authService) {
+    authService.logoutUser(req.headers.authorization || '');
+  }
+  return res.json({ ok: true, message: 'Вы вышли из учётной записи.' });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const user = extractAuthUser(req);
+  if (!user) {
+    return res.status(401).json({ ok: false, user: null, reason: 'Гостевой режим.' });
+  }
+  return res.json({ ok: true, user });
 });
 
 app.get('/api/pins', (req, res) => {
@@ -151,13 +249,15 @@ app.get('/api/pins', (req, res) => {
   });
 });
 
-app.post('/api/moderate-check', (req, res) => {
+app.post('/api/moderate-check', requireModeratorAccess, (req, res) => {
   const { title = '', description = '', tags = '', fileName = '' } = req.body || {};
   res.json(moderateContent({ title, description, tags, fileName }));
 });
 
 app.post('/api/pins', upload.single('image'), (req, res) => {
+  const currentUser = extractAuthUser(req);
   const { title = '', description = '', topic = '', tags = '', author = '', imageUrl = '' } = req.body || {};
+  const resolvedAuthor = currentUser ? currentUser.displayName : author;
   const originalFileName = req.file ? req.file.originalname : imageUrl;
 
   if (!title.trim()) {
@@ -187,7 +287,7 @@ app.post('/api/pins', upload.single('image'), (req, res) => {
     description,
     topic,
     tags,
-    author,
+    author: resolvedAuthor,
     imageUrl: finalImageUrl,
     status: verdict.status,
     moderationNote: verdict.status === 'pending' ? verdict.reason : ''
@@ -238,34 +338,36 @@ app.get('/api/pins/:id/comments', (req, res) => {
 });
 
 app.post('/api/pins/:id/comments', (req, res) => {
+  const currentUser = extractAuthUser(req);
   const { author = '', text = '' } = req.body || {};
-  const check = moderateComment({ author, text });
+  const resolvedAuthor = currentUser ? currentUser.displayName : author;
+  const check = moderateComment({ author: resolvedAuthor, text });
   if (!check.allowed) {
     recordAuditEvent({
       source: 'comment',
       action: 'blocked',
-      target: `Пин #${req.params.id} (${author || 'Гость'})`,
+      target: `Пин #${req.params.id} (${resolvedAuthor || 'Гость'})`,
       reason: check.reason
     });
     return res.status(400).json({ ok: false, reason: check.reason });
   }
-  const comment = storage.addPinComment(req.params.id, { author, text });
+  const comment = storage.addPinComment(req.params.id, { author: resolvedAuthor, text });
   if (!comment) return res.status(404).json({ ok: false, reason: 'Пин не найден' });
   return res.status(201).json({ ok: true, reason: check.reason, comment });
 });
 
-app.get('/api/moderation/pending', (_req, res) => {
+app.get('/api/moderation/pending', requireModeratorAccess, (_req, res) => {
   const pendingPins = storage.getPendingPins();
   res.json({ count: pendingPins.length, pins: pendingPins });
 });
 
-app.get('/api/moderation/audit', (req, res) => {
+app.get('/api/moderation/audit', requireModeratorAccess, (req, res) => {
   const { limit = 25, action = '' } = req.query;
   const logs = getAuditLogs({ limit, action });
   res.json({ ok: true, count: logs.length, logs });
 });
 
-app.get('/api/moderation/stats', (_req, res) => {
+app.get('/api/moderation/stats', requireModeratorAccess, (_req, res) => {
   const summary = getAuditSummary();
   const overview = storage.getModerationOverview();
   res.json({
@@ -277,7 +379,7 @@ app.get('/api/moderation/stats', (_req, res) => {
   });
 });
 
-app.post('/api/moderation/:id/decision', (req, res) => {
+app.post('/api/moderation/:id/decision', requireModeratorAccess, (req, res) => {
   const { decision } = req.body || {};
   const updated = storage.decidePinStatus(req.params.id, decision);
   if (!updated) {
@@ -332,7 +434,8 @@ app.use('/api', (_req, res) => {
 
 if (require.main === module) {
   app.listen(PORT, HOST, () => {
-    console.log(`RuBin server is running on http://${HOST}:${PORT}`);
+    const clickableHost = HOST === '0.0.0.0' ? 'localhost' : HOST;
+    console.log(`RuBin server is running on http://${clickableHost}:${PORT}`);
   });
 }
 

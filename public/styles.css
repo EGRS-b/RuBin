@@ -1024,3 +1024,146 @@ body[data-theme="dark"] .compliance-box {
 body[data-theme="dark"] .compliance-list {
   color: #e5e7eb;
 }
+
+/* Блок учётной записи и модальное окно авторизации / регистрации (Этап 6) */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 14px;
+  border-radius: 999px;
+  background: #fff1f2;
+  border: 1.5px solid #fecdd3;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1f1f1f;
+}
+
+.user-chip.hidden {
+  display: none;
+}
+
+.role-badge {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.role-badge.moderator {
+  background: #be123c;
+  color: #ffffff;
+}
+
+.btn-logout-mini {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid #fda4af;
+  background: #ffffff;
+  color: #be123c;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-logout-mini:hover {
+  background: #ffe4e6;
+}
+
+.auth-modal-card {
+  max-width: 480px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 5px;
+  background: #f3f4f6;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.auth-tab {
+  padding: 9px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.auth-tab.active {
+  background: #be123c;
+  color: #ffffff;
+}
+
+.auth-demo-box {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #fff1f2;
+  border: 1px dashed #fda4af;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+.auth-demo-box strong {
+  color: #be123c;
+}
+
+body[data-theme="dark"] .user-chip {
+  background: #2a1922;
+  border-color: #6b2137;
+  color: #f3f4f6;
+}
+
+body[data-theme="dark"] .role-badge {
+  background: #2d3342;
+  color: #e5e7eb;
+}
+
+body[data-theme="dark"] .role-badge.moderator {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+body[data-theme="dark"] .btn-logout-mini {
+  background: #1c2029;
+  border-color: #6b2137;
+  color: #fb7185;
+}
+
+body[data-theme="dark"] .btn-logout-mini:hover {
+  background: #351c29;
+}
+
+body[data-theme="dark"] .auth-tabs {
+  background: #151820;
+}
+
+body[data-theme="dark"] .auth-tab {
+  color: #9ca3af;
+}
+
+body[data-theme="dark"] .auth-tab.active {
+  background: #e11d48;
+  color: #ffffff;
+}
+
+body[data-theme="dark"] .auth-demo-box {
+  background: #232834;
+  border-color: #6b2137;
+  color: #d1d5db;
+}
+
+body[data-theme="dark"] .auth-demo-box strong {
+  color: #fb7185;
+}
