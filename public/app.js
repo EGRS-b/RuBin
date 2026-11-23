@@ -6,6 +6,8 @@ let activeSort = 'newest';
 let activeBoard = null;
 let activeDetailPin = null;
 let searchTimer = null;
+let currentUser = null;
+let authToken = localStorage.getItem('rubin_auth_token') || '';
 
 const pinsGrid = document.getElementById('pinsGrid');
 const topicsBar = document.getElementById('topicsBar');
@@ -43,12 +45,28 @@ const statPendingReports = document.getElementById('statPendingReports');
 const auditActionFilter = document.getElementById('auditActionFilter');
 const auditLogList = document.getElementById('auditLogList');
 
+const openAuthModalBtn = document.getElementById('openAuthModalBtn');
+const userChip = document.getElementById('userChip');
+const userDisplayName = document.getElementById('userDisplayName');
+const userRoleBadge = document.getElementById('userRoleBadge');
+const logoutBtn = document.getElementById('logoutBtn');
+const authModal = document.getElementById('authModal');
+const authModalTitle = document.getElementById('authModalTitle');
+const closeAuthModalBtn = document.getElementById('closeAuthModalBtn');
+const tabLoginBtn = document.getElementById('tabLoginBtn');
+const tabRegisterBtn = document.getElementById('tabRegisterBtn');
+const loginForm = document.getElementById('loginForm');
+const registerForm = document.getElementById('registerForm');
+const loginStatusMsg = document.getElementById('loginStatusMsg');
+const registerStatusMsg = document.getElementById('registerStatusMsg');
+
 const openCreateModalBtn = document.getElementById('openCreateModalBtn');
 const closeCreateModalBtn = document.getElementById('closeCreateModalBtn');
 const cancelCreateBtn = document.getElementById('cancelCreateBtn');
 const createModal = document.getElementById('createModal');
 const createPinForm = document.getElementById('createPinForm');
 const pinTopicSelect = document.getElementById('pinTopic');
+const pinAuthorInput = document.getElementById('pinAuthor');
 const createPinStatus = document.getElementById('createPinStatus');
 
 const detailModal = document.getElementById('detailModal');
@@ -67,6 +85,7 @@ const saveToBoardBtn = document.getElementById('saveToBoardBtn');
 
 const commentsList = document.getElementById('commentsList');
 const commentForm = document.getElementById('commentForm');
+const commentAuthorInput = document.getElementById('commentAuthor');
 const commentStatusMsg = document.getElementById('commentStatusMsg');
 
 const healthPill = document.getElementById('healthPill');
@@ -89,6 +108,7 @@ const SOURCE_LABELS = {
   board: 'Доска',
   report: 'Жалоба',
   moderator: 'Модератор',
+  auth: 'Аккаунт',
   system: 'Система'
 };
 
@@ -105,6 +125,160 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
+
+function buildAuthHeaders(extraHeaders = {}) {
+  const headers = {
+    'X-Rubin-Client': 'web',
+    ...extraHeaders
+  };
+  if (authToken) {
+    headers.Authorization = `Bearer ${authToken}`;
+  }
+  return headers;
+}
+
+function apiFetch(url, options = {}) {
+  return fetch(url, {
+    ...options,
+    headers: buildAuthHeaders(options.headers || {})
+  });
+}
+
+function isModerator() {
+  return Boolean(currentUser && currentUser.role === 'moderator');
+}
+
+function syncAuthorInputs() {
+  if (currentUser) {
+    pinAuthorInput.value = currentUser.displayName;
+    commentAuthorInput.value = currentUser.displayName;
+  }
+}
+
+function setAuthTab(mode) {
+  const isLogin = mode === 'login';
+  tabLoginBtn.classList.toggle('active', isLogin);
+  tabRegisterBtn.classList.toggle('active', !isLogin);
+  loginForm.classList.toggle('hidden', !isLogin);
+  registerForm.classList.toggle('hidden', isLogin);
+  authModalTitle.textContent = isLogin
+    ? '👤 Вход в аккаунт RuBin'
+    : '✨ Регистрация в RuBin';
+  loginStatusMsg.className = 'check-result hidden';
+  registerStatusMsg.className = 'check-result hidden';
+}
+
+function openAuthModal(defaultMode = 'login') {
+  setAuthTab(defaultMode);
+  authModal.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  authModal.classList.add('hidden');
+}
+
+openAuthModalBtn.addEventListener('click', () => openAuthModal('login'));
+closeAuthModalBtn.addEventListener('click', closeAuthModal);
+tabLoginBtn.addEventListener('click', () => setAuthTab('login'));
+tabRegisterBtn.addEventListener('click', () => setAuthTab('register'));
+
+async function restoreSession() {
+  if (!authToken) {
+    currentUser = null;
+        return;
+  }
+  try {
+    const res = await apiFetch('/api/auth/me');
+    if (!res.ok) {
+      authToken = '';
+      localStorage.removeItem('rubin_auth_token');
+      currentUser = null;
+            return;
+    }
+    const data = await res.json();
+    currentUser = data.user || null;
+        if (isModerator()) {
+      await loadPendingQueue();
+    }
+  } catch {
+    currentUser = null;
+      }
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    username: document.getElementById('loginUsername').value,
+    password: document.getElementById('loginPassword').value
+  };
+  try {
+    const res = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      loginStatusMsg.className = 'check-result rejected';
+      loginStatusMsg.textContent = data.reason || 'Не удалось выполнить вход.';
+      return;
+    }
+    authToken = data.token;
+    localStorage.setItem('rubin_auth_token', authToken);
+    currentUser = data.user;
+        loginForm.reset();
+    closeAuthModal();
+    if (isModerator()) {
+      await refreshModeratorDashboard();
+    }
+  } catch {
+    loginStatusMsg.className = 'check-result rejected';
+    loginStatusMsg.textContent = 'Сервер авторизации временно недоступен.';
+  }
+});
+
+registerForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const payload = {
+    username: document.getElementById('regUsername').value,
+    displayName: document.getElementById('regDisplayName').value,
+    password: document.getElementById('regPassword').value
+  };
+  try {
+    const res = await apiFetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      registerStatusMsg.className = 'check-result rejected';
+      registerStatusMsg.textContent = data.reason || 'Ошибка при регистрации.';
+      return;
+    }
+    authToken = data.token;
+    localStorage.setItem('rubin_auth_token', authToken);
+    currentUser = data.user;
+        registerForm.reset();
+    closeAuthModal();
+  } catch {
+    registerStatusMsg.className = 'check-result rejected';
+    registerStatusMsg.textContent = 'Сервер регистрации временно недоступен.';
+  }
+});
+
+logoutBtn.addEventListener('click', async () => {
+  try {
+    await apiFetch('/api/auth/logout', { method: 'POST' });
+  } catch {
+    // Игнорируем сетевую ошибку при выходе
+  }
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('rubin_auth_token');
+  pinAuthorInput.value = '';
+  commentAuthorInput.value = '';
+  });
 
 function applyTheme(theme) {
   const isDark = theme === 'dark';
@@ -158,7 +332,7 @@ function renderTopics(topics) {
 }
 
 async function loadBoards() {
-  const res = await fetch('/api/boards');
+  const res = await apiFetch('/api/boards');
   const data = await res.json();
   allBoards = data.boards || [];
   boardsBadge.textContent = allBoards.length;
@@ -225,7 +399,7 @@ createBoardForm.addEventListener('submit', async (e) => {
     title: document.getElementById('newBoardTitle').value,
     description: document.getElementById('newBoardDesc').value
   };
-  const res = await fetch('/api/boards', {
+  const res = await apiFetch('/api/boards', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -236,14 +410,14 @@ createBoardForm.addEventListener('submit', async (e) => {
   if (data.ok) {
     createBoardForm.reset();
     await loadBoards();
-  } else if (!moderatorPanel.classList.contains('hidden')) {
+  } else if (isModerator() && !moderatorPanel.classList.contains('hidden')) {
     await refreshModeratorDashboard();
   }
 });
 
 saveToBoardBtn.addEventListener('click', async () => {
   if (!activeDetailPin || !saveBoardSelect.value) return;
-  const res = await fetch(`/api/boards/${saveBoardSelect.value}/pins`, {
+  const res = await apiFetch(`/api/boards/${saveBoardSelect.value}/pins`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ pinId: activeDetailPin.id })
@@ -306,7 +480,7 @@ async function fetchPins() {
   if (searchInput.value.trim()) params.set('q', searchInput.value.trim());
   params.set('sort', activeSort);
 
-  const res = await fetch(`/api/pins?${params.toString()}`);
+  const res = await apiFetch(`/api/pins?${params.toString()}`);
   const data = await res.json();
 
   if (data.topics && !allTopics.length) {
@@ -318,7 +492,7 @@ async function fetchPins() {
     safeSearchReason.textContent = data.reason;
     safeSearchBanner.classList.remove('hidden');
     pinsGrid.innerHTML = '';
-    if (!moderatorPanel.classList.contains('hidden')) {
+    if (isModerator() && !moderatorPanel.classList.contains('hidden')) {
       await refreshModeratorDashboard();
     }
     return;
@@ -330,7 +504,7 @@ async function fetchPins() {
 }
 
 async function sendLike(id) {
-  const res = await fetch(`/api/pins/${id}/like`, { method: 'POST' });
+  const res = await apiFetch(`/api/pins/${id}/like`, { method: 'POST' });
   const data = await res.json();
   if (data.ok) {
     await fetchPins();
@@ -342,7 +516,7 @@ async function sendLike(id) {
 }
 
 async function loadComments(pinId) {
-  const res = await fetch(`/api/pins/${pinId}/comments`);
+  const res = await apiFetch(`/api/pins/${pinId}/comments`);
   const data = await res.json();
   const list = data.comments || [];
   if (!list.length) {
@@ -366,7 +540,7 @@ function openDetailModal(pin) {
   detailLikeBtn.textContent = `❤️ Нравится (${pin.likes || 0})`;
   detailStatusMsg.className = 'check-result hidden';
   commentStatusMsg.className = 'check-result hidden';
-  detailModal.classList.remove('hidden');
+    detailModal.classList.remove('hidden');
   loadComments(pin.id);
 }
 
@@ -374,10 +548,10 @@ commentForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!activeDetailPin) return;
   const payload = {
-    author: document.getElementById('commentAuthor').value,
+    author: commentAuthorInput.value,
     text: document.getElementById('commentText').value
   };
-  const res = await fetch(`/api/pins/${activeDetailPin.id}/comments`, {
+  const res = await apiFetch(`/api/pins/${activeDetailPin.id}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
@@ -389,7 +563,7 @@ commentForm.addEventListener('submit', async (e) => {
     document.getElementById('commentText').value = '';
     await loadComments(activeDetailPin.id);
     await fetchPins();
-  } else if (!moderatorPanel.classList.contains('hidden')) {
+  } else if (isModerator() && !moderatorPanel.classList.contains('hidden')) {
     await refreshModeratorDashboard();
   }
 });
@@ -402,7 +576,7 @@ detailLikeBtn.addEventListener('click', async () => {
 
 detailReportBtn.addEventListener('click', async () => {
   if (!activeDetailPin) return;
-  const res = await fetch(`/api/pins/${activeDetailPin.id}/report`, {
+  const res = await apiFetch(`/api/pins/${activeDetailPin.id}/report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason: 'Отправлено пользователем на проверку соответствия правилам РФ' })
@@ -426,20 +600,29 @@ resetSearchBtn.addEventListener('click', () => {
   fetchPins();
 });
 
-toggleCheckerBtn.addEventListener('click', () => checkerPanel.classList.toggle('hidden'));
+toggleCheckerBtn.addEventListener('click', () => {
+  if (!isModerator()) return;
+  checkerPanel.classList.toggle('hidden');
+});
 
 runCheckBtn.addEventListener('click', async () => {
+  if (!isModerator()) return;
   const payload = {
     title: document.getElementById('checkTitle').value,
     description: document.getElementById('checkDesc').value,
     fileName: document.getElementById('checkFile').value
   };
-  const res = await fetch('/api/moderate-check', {
+  const res = await apiFetch('/api/moderate-check', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
   const result = await res.json();
+  if (!res.ok) {
+    checkResult.className = 'check-result rejected';
+    checkResult.textContent = result.reason || 'Доступ разрешён только модераторам.';
+    return;
+  }
   checkResult.className = `check-result ${result.status}`;
   checkResult.textContent = `[Статус: ${result.status.toUpperCase()}] ${result.reason}`;
 });
@@ -449,7 +632,9 @@ function closeCreateModal() {
   createPinStatus.className = 'check-result hidden';
 }
 
-openCreateModalBtn.addEventListener('click', () => createModal.classList.remove('hidden'));
+openCreateModalBtn.addEventListener('click', () => {
+    createModal.classList.remove('hidden');
+});
 closeCreateModalBtn.addEventListener('click', closeCreateModal);
 cancelCreateBtn.addEventListener('click', closeCreateModal);
 
@@ -459,7 +644,7 @@ createPinForm.addEventListener('submit', async (e) => {
   formData.append('title', document.getElementById('pinTitle').value);
   formData.append('description', document.getElementById('pinDesc').value);
   formData.append('topic', pinTopicSelect.value);
-  formData.append('author', document.getElementById('pinAuthor').value);
+  formData.append('author', pinAuthorInput.value);
   formData.append('tags', document.getElementById('pinTags').value);
   formData.append('imageUrl', document.getElementById('pinImageUrl').value);
 
@@ -468,7 +653,7 @@ createPinForm.addEventListener('submit', async (e) => {
     formData.append('image', fileInput.files[0]);
   }
 
-  const res = await fetch('/api/pins', { method: 'POST', body: formData });
+  const res = await apiFetch('/api/pins', { method: 'POST', body: formData });
   const result = await res.json();
 
   createPinStatus.className = `check-result ${result.status}`;
@@ -476,20 +661,21 @@ createPinForm.addEventListener('submit', async (e) => {
 
   if (result.status === 'approved') {
     createPinForm.reset();
-    await fetchPins();
+        await fetchPins();
     await refreshModeratorDashboard();
     setTimeout(closeCreateModal, 1100);
   } else if (result.status === 'pending') {
     createPinForm.reset();
-    await refreshModeratorDashboard();
+        await refreshModeratorDashboard();
   } else {
     await refreshModeratorDashboard();
   }
 });
 
 async function loadModerationStats() {
+  if (!isModerator()) return;
   try {
-    const res = await fetch('/api/moderation/stats');
+    const res = await apiFetch('/api/moderation/stats');
     if (!res.ok) return;
     const data = await res.json();
     const s = data.stats || {};
@@ -498,17 +684,18 @@ async function loadModerationStats() {
     statSpamCount.textContent = s.spamBlockedCount || 0;
     statPendingReports.textContent = `${s.pendingPins || 0} / ${s.totalReports || 0}`;
   } catch {
-    // Безопасный fallback, если серверная ветка статистики ещё не слита
+    // Безопасный fallback
   }
 }
 
 async function loadAuditLog() {
+  if (!isModerator()) return;
   try {
     const params = new URLSearchParams({ limit: '25' });
     if (auditActionFilter.value) params.set('action', auditActionFilter.value);
-    const res = await fetch(`/api/moderation/audit?${params.toString()}`);
+    const res = await apiFetch(`/api/moderation/audit?${params.toString()}`);
     if (!res.ok) {
-      auditLogList.innerHTML = '<p class="checker-hint">Журнал аудита ожидает подключения серверного API.</p>';
+      auditLogList.innerHTML = '<p class="checker-hint">Журнал аудита доступен только модераторам.</p>';
       return;
     }
     const data = await res.json();
@@ -550,7 +737,9 @@ async function loadAuditLog() {
 }
 
 async function loadPendingQueue() {
-  const res = await fetch('/api/moderation/pending');
+  if (!isModerator()) return;
+  const res = await apiFetch('/api/moderation/pending');
+  if (!res.ok) return;
   const data = await res.json();
   const items = data.pins || [];
   pendingBadge.textContent = items.length;
@@ -582,7 +771,7 @@ async function loadPendingQueue() {
 
   pendingList.querySelectorAll('button[data-decide]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      await fetch(`/api/moderation/${btn.dataset.id}/decision`, {
+      await apiFetch(`/api/moderation/${btn.dataset.id}/decision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ decision: btn.dataset.decide })
@@ -594,6 +783,7 @@ async function loadPendingQueue() {
 }
 
 async function refreshModeratorDashboard() {
+  if (!isModerator()) return;
   await Promise.all([loadPendingQueue(), loadModerationStats(), loadAuditLog()]);
 }
 
@@ -601,6 +791,7 @@ refreshModBtn.addEventListener('click', refreshModeratorDashboard);
 auditActionFilter.addEventListener('change', loadAuditLog);
 
 toggleModBtn.addEventListener('click', () => {
+  if (!isModerator()) return;
   moderatorPanel.classList.toggle('hidden');
   if (!moderatorPanel.classList.contains('hidden')) {
     refreshModeratorDashboard();
@@ -620,7 +811,7 @@ function formatUptime(seconds) {
 
 async function loadSystemHealth() {
   try {
-    const res = await fetch('/api/health');
+    const res = await apiFetch('/api/health');
     if (!res.ok) throw new Error('Health endpoint unavailable');
     const data = await res.json();
     const versionText = data.version ? `v${data.version}` : 'v1.1.0';
@@ -655,7 +846,7 @@ closeAboutModalBtn.addEventListener('click', closeAboutModal);
 okAboutModalBtn.addEventListener('click', closeAboutModal);
 refreshHealthBtn.addEventListener('click', loadSystemHealth);
 
+restoreSession();
 fetchPins();
 loadBoards();
-loadPendingQueue();
 loadSystemHealth();
