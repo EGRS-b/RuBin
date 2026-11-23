@@ -25,10 +25,16 @@
       <button id="toggleBoardsBtn" class="btn-outline">
         📌 Мои доски <span id="boardsBadge" class="mod-badge">0</span>
       </button>
-      <button id="toggleCheckerBtn" class="btn-outline">🛡 Фильтр РФ</button>
-      <button id="toggleModBtn" class="btn-outline">
+      <button id="toggleCheckerBtn" class="btn-outline hidden">🛡 Фильтр РФ</button>
+      <button id="toggleModBtn" class="btn-outline hidden">
         ⚖️ Модератор <span id="pendingBadge" class="mod-badge">0</span>
       </button>
+      <button id="openAuthModalBtn" class="btn-outline">👤 Войти</button>
+      <div id="userChip" class="user-chip hidden">
+        <span id="userDisplayName">Гость</span>
+        <span id="userRoleBadge" class="role-badge">Участник</span>
+        <button id="logoutBtn" class="btn-logout-mini" title="Выйти из аккаунта">Выйти</button>
+      </div>
       <button id="themeToggleBtn" class="btn-outline" title="Переключить тему оформления">
         🌙 Ночная тема
       </button>
@@ -279,6 +285,60 @@
       <div class="modal-footer">
         <button type="button" id="refreshHealthBtn" class="btn-outline">🔄 Проверить диагностику</button>
         <button type="button" id="okAboutModalBtn" class="btn-ruby">Понятно</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="authModal" class="modal-backdrop hidden">
+    <div class="modal-card auth-modal-card">
+      <div class="modal-header">
+        <h2 id="authModalTitle">👤 Вход в аккаунт RuBin</h2>
+        <button id="closeAuthModalBtn" class="modal-close" aria-label="Закрыть">✕</button>
+      </div>
+
+      <div class="auth-tabs">
+        <button type="button" id="tabLoginBtn" class="auth-tab active">Вход в аккаунт</button>
+        <button type="button" id="tabRegisterBtn" class="auth-tab">Регистрация</button>
+      </div>
+
+      <form id="loginForm" class="create-form">
+        <label>
+          Логин пользователя *
+          <input type="text" id="loginUsername" required autocomplete="username" placeholder="Например: egor или reader" />
+        </label>
+        <label>
+          Пароль *
+          <input type="password" id="loginPassword" required autocomplete="current-password" placeholder="Введите пароль..." />
+        </label>
+        <div id="loginStatusMsg" class="check-result hidden"></div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-ruby">Войти в профиль</button>
+        </div>
+      </form>
+
+      <form id="registerForm" class="create-form hidden">
+        <label>
+          Логин (латиница, цифры или _) *
+          <input type="text" id="regUsername" required autocomplete="username" placeholder="Например: maria_art" />
+        </label>
+        <label>
+          Отображаемое имя в профиле *
+          <input type="text" id="regDisplayName" required placeholder="Например: Мария Соколова" />
+        </label>
+        <label>
+          Пароль (минимум 6 символов) *
+          <input type="password" id="regPassword" required autocomplete="new-password" placeholder="Придумайте надёжный пароль..." />
+        </label>
+        <div id="registerStatusMsg" class="check-result hidden"></div>
+        <div class="modal-footer">
+          <button type="submit" class="btn-ruby">Создать аккаунт</button>
+        </div>
+      </form>
+
+      <div class="auth-demo-box">
+        <div><strong>Служебные аккаунты модерации (открывают «Фильтр РФ» и «Модератор»):</strong></div>
+        <div>Логины: <code>egor</code>, <code>lev</code> или <code>elisey</code> • Пароль: <code>RubinMod2026!</code></div>
+        <div><strong>Обычный участник (без прав модератора):</strong> <code>reader</code> • Пароль: <code>RubinUser2026!</code></div>
       </div>
     </div>
   </div>
