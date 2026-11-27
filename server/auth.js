@@ -27,6 +27,7 @@ function sanitizeUser(user) {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
+    avatarUrl: user.avatarUrl || null,
     role: user.role,
     createdAt: user.createdAt
   };
@@ -90,7 +91,13 @@ function readUsers(usersFile = DEFAULT_USERS_FILE) {
 
 function writeUsers(users, usersFile = DEFAULT_USERS_FILE) {
   ensureUsersFile(usersFile);
-  fs.writeFileSync(usersFile, JSON.stringify(users, null, 2), 'utf8');
+  const temporary = usersFile + '.' + process.pid + '.tmp';
+  try {
+    fs.writeFileSync(temporary, JSON.stringify(users, null, 2), 'utf8');
+    fs.renameSync(temporary, usersFile);
+  } finally {
+    fs.rmSync(temporary, { force: true });
+  }
 }
 
 function readSessions(sessionsFile = DEFAULT_SESSIONS_FILE) {
@@ -249,7 +256,18 @@ function logoutUser(token, options = {}) {
   return true;
 }
 
+function updateUserProfile(userId, { displayName, avatarUrl }) {
+  const users = readUsers();
+  const user = users.find((entry) => entry.id === userId);
+  if (!user) return null;
+  if (displayName !== undefined) user.displayName = displayName;
+  if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
+  writeUsers(users);
+  return sanitizeUser(user);
+}
+
 module.exports = {
+  updateUserProfile,
   hashPassword,
   verifyPassword,
   sanitizeUser,
