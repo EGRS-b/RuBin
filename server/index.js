@@ -5,6 +5,7 @@ const multer = require('multer');
 const pkg = require('../package.json');
 const storage = require('./storage');
 const boardsStorage = require('./boardsStorage');
+const { registerProfileRoutes } = require('./profile');
 const { normalizeSortMode } = require('./pinSorter');
 const { securityHeadersMiddleware, buildHealthPayload } = require('./securityHeaders');
 
@@ -118,6 +119,13 @@ function extractAuthUser(req) {
   return authService.getUserByToken(header);
 }
 
+function requireUser(req, res, next) {
+  const user = extractAuthUser(req);
+  if (!user) return res.status(401).json({ ok: false, reason: 'Войдите в аккаунт RuBin.' });
+  req.user = user;
+  return next();
+}
+
 function requireModeratorAccess(req, res, next) {
   if (!authService) return next();
 
@@ -216,6 +224,8 @@ app.get('/api/auth/me', (req, res) => {
   }
   return res.json({ ok: true, user });
 });
+
+registerProfileRoutes(app, { requireUser, authService, moderateContent, recordAuditEvent, uploadsDir });
 
 app.get('/api/pins', (req, res) => {
   const { topic, q = '', search = '', sort = 'newest' } = req.query;
